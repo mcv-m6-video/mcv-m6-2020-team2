@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+
+# Data
+data/
+
+# Pycharm directories
+.idea/
+
+# MAC OS files
+.DS_Store
