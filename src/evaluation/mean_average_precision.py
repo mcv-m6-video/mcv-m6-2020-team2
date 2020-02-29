@@ -12,15 +12,31 @@ def get_mAP(x, gt, confidence_scores=True):
     return mAP
 
 def _mAP_with_confidence(x, gt):
-    # TODO: Sort x by confidence and compute mAP
-    mAPS = {}
-    return mAPS
+    """
+        x: {int(frame_num): [[x0,y0,x1,y1,c],[...]]}
+        gt: {int(frame_num): [[x0,y0,x1,y1,c],[...]]}
+    """
+    # Sort x by confidence on each frame
+    x2 = {}
+    for k, v in x.items():
+        v_sorted = sorted(v, key=lambda w: w[-1], reverse=True)
+        x2[k] = v_sorted
+
+    # Compute AP of each frame
+    APs = _compute_AP(x2, gt)
+
+    return APs
 
 def _mAP_without_confidence(x, gt):
+    """
+        x: {int(frame_num): [[x0,y0,x1,y1],[...]]}
+        gt: {int(frame_num): [[x0,y0,x1,y1],[...]]}
+    """
     N = 10 # Number of random ranks
 
     APs = {}
     for i in range(N):
+        # Shuffle bbs on each frame
         x2 = {}
         for k, v in x.items():
             shuffle(v)
