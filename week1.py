@@ -33,7 +33,7 @@ def task2():
     pred_path = 'data/optical_flow_results/'
     kitti_data = 'data/data_stereo_flow/training/'
     images = ['045', '157']
-    plot = True
+    plot = False
 
     for im_idx in images:
         im_name = f'000{im_idx}_10.png'
@@ -46,8 +46,8 @@ def task2():
         flow_pred = read_flow_field(flow_estimation, frame_id=im_idx, plot=plot)
         flow_gt = read_flow_field(gt_non_occ, frame_id=im_idx, plot=plot)
 
-        msen, pepn = get_msen_pepn(flow_pred, flow_gt, frame_id=im_idx, th=3, plot=plot)
-        print(f'SEQ-45\n  MSEN: {round(msen, 2)}\n  PEPN: {round(pepn, 2)}%')
+        msen, pepn = get_msen_pepn(flow_pred, flow_gt, frame_id=im_idx, th=3, plot=True)
+        print(f'SEQ-{im_idx}\n  MSEN: {round(msen, 2)}\n  PEPN: {round(pepn, 2)}%')
 
 
 if __name__ == '__main__':
