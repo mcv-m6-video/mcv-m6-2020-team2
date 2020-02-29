@@ -1,7 +1,7 @@
 from random import shuffle
 import numpy as np
 
-from evaluation import intersection_over_union
+from .intersection_over_union import IoU_from_bbs
 
 
 def get_mAP(x, gt, confidence_scores=True):
@@ -52,7 +52,7 @@ def _compute_AP(x, gt):
         n_items = len(bb_list_gt)
 
         # Compute correctness of bounding boxes
-        correctness = [max([intersection_over_union.IoU_from_bbs(i, j) for j in bb_list_gt]) > iou_thresh for i in bb_list]
+        correctness = [max([IoU_from_bbs(i, j) for j in bb_list_gt]) > iou_thresh for i in bb_list]
 
         # Compute precision and recall at each step
         precision = []
