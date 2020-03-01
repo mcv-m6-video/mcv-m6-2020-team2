@@ -11,6 +11,7 @@ from src.evaluation.intersection_over_union import mean_intersection_over_union
 
 from src.evaluation.optical_flow_evaluation import get_msen_pepn
 from src.utils.io_optical_flow import read_flow_field, read_grayscale_image
+from src.utils.optical_flow_visualization import plot_optical_flow
 
 
 def task1():
@@ -83,13 +84,14 @@ def task2():
     plt.show()
 
 
-def task3():
+def task3_4():
     pred_path = 'data/optical_flow_results/'
     kitti_data = 'data/data_stereo_flow/training/'
     images = ['045', '157']
     plot = False
 
     for im_idx in images:
+
         im_name = f'000{im_idx}_10.png'
 
         flow_estimation = os.path.join(pred_path, f'LKflow_{im_name}')
@@ -100,11 +102,17 @@ def task3():
         flow_pred = read_flow_field(flow_estimation, frame_id=im_idx, plot=plot)
         flow_gt = read_flow_field(gt_non_occ, frame_id=im_idx, plot=plot)
 
-        msen, pepn = get_msen_pepn(flow_pred, flow_gt, frame_id=im_idx, th=3, plot=True)
+        msen, pepn = get_msen_pepn(flow_pred, flow_gt, frame_id=im_idx, th=3, plot=plot)
         print(f'SEQ-{im_idx}\n  MSEN: {round(msen, 2)}\n  PEPN: {round(pepn, 2)}%')
+
+
+        plot_optical_flow(image_gray, flow_gt[:,:,0:2], 'GT', im_idx, 10)
+        plot_optical_flow(image_gray, flow_pred[:,:,0:2], 'PRED', im_idx, 10)
+
+
 
 
 if __name__ == '__main__':
     #task1()
-    task2()
-    #task3()
+    #task2()
+    task3_4()
