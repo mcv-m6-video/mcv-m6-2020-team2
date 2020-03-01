@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
-from src.evaluation.mean_average_precision import get_mAP
+from src.evaluation.average_precision import mean_average_precision
 
 from src.evaluation.optical_flow_evaluation import get_msen_pepn
 from src.utils.io_optical_flow import read_flow_field, read_grayscale_image
@@ -21,12 +21,16 @@ def task1():
     gt = reader.get_gt(classes=['car'], group_by_frame=True, boxes_only=True)
     gt_noisy = reader.get_gt(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
 
-    mAP_all_frames = get_mAP(gt_noisy, gt, confidence_scores=False)
-    mAP_avg_across_frames = np.mean([v for k, v in mAP_all_frames.items()])
+    y_true = []
+    y_pred = []
+    for frame in sorted(list(set(gt) & set(gt_noisy))):
+        y_true.append(gt[frame])
+        y_pred.append(gt_noisy[frame])
 
-    print('mAP averaged across all frames: {:.4f}'.format(mAP_avg_across_frames))
+    map = mean_average_precision(y_true, y_pred)
+    print(f'mAP: {map:.4f}')
 
-    # TODO: TASK 1.2
+    # TODO: Task 1.2
 
 
 def task2():

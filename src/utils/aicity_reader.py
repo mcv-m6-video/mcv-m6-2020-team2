@@ -1,4 +1,3 @@
-from itertools import chain
 from collections import defaultdict, OrderedDict
 
 import numpy as np
@@ -38,6 +37,11 @@ class AICityChallengeAnnotationReader:
         self.classes = np.unique([x[1] for x in self.gts])
 
     def get_gt(self, classes=None, noise_params=None, group_by_frame=False, boxes_only=False):
+        """
+        Returns:
+            res: {frame: [[cls,xtl,ytl,xbr,ybr],...]} if group_by_frame=True and boxes_only=True
+        """
+
         if classes is None:
             classes = self.classes
 
@@ -47,7 +51,7 @@ class AICityChallengeAnnotationReader:
                 if noise_params:  # add noise
                     if np.random.random() > noise_params['drop']:
                         box_noisy = list(gt[3:7] + np.random.normal(noise_params['mean'], noise_params['std'], 4))
-                        res.append(list(chain.from_iterable([gt[:3], box_noisy, gt[7:]])))
+                        res.append(gt[:3] + box_noisy + gt[7:])
                 else:
                     res.append(gt[:])
 
@@ -56,7 +60,7 @@ class AICityChallengeAnnotationReader:
             for gt in res:
                 frame = gt[2]
                 if boxes_only:
-                    gt = gt[3:7]
+                    gt = [gt[1]] + gt[3:7]
                 else:
                     del gt[2]
                 grouped[frame].append(gt)
@@ -76,9 +80,9 @@ if __name__ == '__main__':
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
     ret, img = cap.read()
     for box in gt[frame]:
-        cv2.rectangle(img, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 255, 0), 2)
+        cv2.rectangle(img, (int(box[1]), int(box[2])), (int(box[3]), int(box[4])), (0, 255, 0), 2)
     for box in gt_noisy[frame]:
-        cv2.rectangle(img, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 0, 255), 2)
+        cv2.rectangle(img, (int(box[1]), int(box[2])), (int(box[3]), int(box[4])), (0, 0, 255), 2)
     cv2.imshow('image', img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
