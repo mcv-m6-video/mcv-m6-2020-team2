@@ -17,14 +17,14 @@ from src.utils.optical_flow_visualization import plot_optical_flow
 def task1():
     # Task 1.1
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
-    gt = reader.get_gt(classes=['car'], group_by_frame=True, boxes_only=True)
+    gt = reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
 
     noise_params = {
         'drop': 0.05,
         'mean': 0,
         'std': 10  # video is 1920x1080
     }
-    gt_noisy = reader.get_gt(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
+    gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
 
     frames = sorted(list(set(gt) & set(gt_noisy)))
     y_true = []
@@ -36,14 +36,29 @@ def task1():
     map = mean_average_precision(y_true, y_pred)
     print(f'mAP: {map:.4f}')
 
-    # TODO: Task 1.2
+    # Task 1.2
+    detectors = ['det_mask_rcnn.txt', 'det_ssd512.txt', 'det_yolo3.txt']
+    detections_path = 'data/AICity_data/train/S03/c010/det/'
+
+    for detector in detectors:
+        print("Detector: ", detector)
+        dets_reader = AICityChallengeAnnotationReader(path=detections_path + detector)
+        detections_list = dets_reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
+        frames = sorted(list(set(gt) & set(detections_list)))
+        y_true = []
+        y_pred = []
+        for frame in frames:
+            y_true.append(gt[frame])
+            y_pred.append(detections_list[frame])
+        map = mean_average_precision(y_true, y_pred)
+        print(f'mAP: {map:.4f}')
 
 
 def task2():
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
-    gt = reader.get_gt(classes=['car'], group_by_frame=True, boxes_only=True)
+    gt = reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
     noise_params = {'drop': 0.05, 'mean': 0, 'std': 10}
-    gt_noisy = reader.get_gt(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
+    gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
 
     frames = sorted(list(set(gt) & set(gt_noisy)))
     overlaps = []
