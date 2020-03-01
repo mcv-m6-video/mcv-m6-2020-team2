@@ -44,20 +44,31 @@ def vec_intersecion_over_union(boxes1, boxes2):
         overlaps: matrix of pairwise overlaps.
     """
 
+    x11, y11, x12, y12 = np.split(boxes1, 4, axis=1)
+    x21, y21, x22, y22 = np.split(boxes2, 4, axis=1)
+
     # intersection
-    ixmin = np.maximum(boxes1[:, 0], np.transpose(boxes2[:, 0]))
-    iymin = np.maximum(boxes1[:, 1], np.transpose(boxes2[:, 1]))
-    ixmax = np.minimum(boxes1[:, 2], np.transpose(boxes2[:, 2]))
-    iymax = np.minimum(boxes1[:, 3], np.transpose(boxes2[:, 3]))
+    ixmin = np.maximum(x11, np.transpose(x21))
+    iymin = np.maximum(y11, np.transpose(y21))
+    ixmax = np.minimum(x12, np.transpose(x22))
+    iymax = np.minimum(y12, np.transpose(y22))
     iw = np.maximum(ixmax - ixmin + 1.0, 0.0)
     ih = np.maximum(iymax - iymin + 1.0, 0.0)
     inters = iw * ih
 
     # union
-    area1 = (boxes1[:, 2] - boxes1[:, 0] + 1.0) * (boxes1[:, 3] - boxes1[:, 1] + 1.0)
-    area2 = (boxes2[:, 2] - boxes2[:, 0] + 1.0) * (boxes2[:, 3] - boxes2[:, 1] + 1.0)
-    uni = area1 + area2 - inters
+    area1 = (x12 - x11 + 1.0) * (y12 - y11 + 1.0)
+    area2 = (x22 - x21 + 1.0) * (y22 - y21 + 1.0)
+    uni = area1 + np.transpose(area2) - inters
 
     overlaps = inters / uni
 
     return overlaps
+
+
+def mean_intersection_over_union(boxes1, boxes2):
+    boxes1 = np.array(boxes1).reshape(-1, 4)
+    boxes2 = np.array(boxes2).reshape(-1, 4)
+    overlaps = vec_intersecion_over_union(boxes1, boxes2)
+    # for each gt (rows) select the max overlap with any detection (columns)
+    return np.mean(np.max(overlaps, axis=1))
