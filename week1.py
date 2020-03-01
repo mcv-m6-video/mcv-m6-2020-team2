@@ -1,6 +1,9 @@
 import os
 
+import numpy as np
+import cv2
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
 from src.evaluation.average_precision import mean_average_precision
@@ -49,11 +52,34 @@ def task2():
         iou = mean_intersection_over_union(boxes1, boxes2)
         overlaps.append(iou)
 
-    plt.plot(frames, overlaps)
-    plt.ylim(0, 1)
-    plt.xlabel('#frame')
-    plt.ylabel('mean IoU')
-    plt.title('noisy annotation')
+    cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+
+    fig, ax = plt.subplots(2)
+    image = ax[0].imshow(np.zeros((height, width)))
+    line, = ax[1].plot(frames, overlaps)
+    artists = [image, line]
+
+    def update(i):
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frames[i])
+        ret, img = cap.read()
+        for box in gt[frames[i]]:
+            cv2.rectangle(img, (int(box[1]), int(box[2])), (int(box[3]), int(box[4])), (0, 255, 0), 2)
+        for box in gt_noisy[frames[i]]:
+            cv2.rectangle(img, (int(box[1]), int(box[2])), (int(box[3]), int(box[4])), (0, 0, 255), 2)
+        artists[0].set_data(img[:, :, ::-1])
+        artists[1].set_data(frames[:i+1], overlaps[:i+1])
+        return artists
+
+    ani = animation.FuncAnimation(fig, update, len(frames), interval=2, blit=True)
+
+    ax[0].set_xticks([])
+    ax[0].set_yticks([])
+    ax[1].set_ylim(0, 1)
+    ax[1].set_xlabel('#frame')
+    ax[1].set_ylabel('mean IoU')
+    fig.suptitle('noisy annotation')
     plt.show()
 
 
