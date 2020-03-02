@@ -17,24 +17,71 @@ from src.utils.optical_flow_visualization import plot_optical_flow
 def task1():
     # Task 1.1
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
-    gt = reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
+    gt = reader.get_gt(classes=['car'], group_by_frame=True, boxes_only=True)
 
-    noise_params = {
-        'drop': 0.05,
-        'mean': 0,
-        'std': 10  # video is 1920x1080
-    }
-    gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
+    # test 1: dropping BBoxs
 
-    frames = sorted(list(set(gt) & set(gt_noisy)))
-    y_true = []
-    y_pred = []
-    for frame in frames:
-        y_true.append(gt[frame])
-        y_pred.append(gt_noisy[frame])
+    maps = []
+    test_values = np.arange(0,0.99,0.1)
 
-    map = mean_average_precision(y_true, y_pred)
-    print(f'mAP: {map:.4f}')
+    for drop in test_values:
+
+        noise_params = {
+            'drop': drop,
+            'mean': 0,
+            'std': 0  # video is 1920x1080
+        }
+        gt_noisy = reader.get_gt(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
+
+        frames = sorted(list(set(gt) & set(gt_noisy)))
+        y_true = []
+        y_pred = []
+        for frame in frames:
+            y_true.append(gt[frame])
+            y_pred.append(gt_noisy[frame])
+
+        map = mean_average_precision(y_true, y_pred)
+        maps.append(map)
+        print(f'noise_params: {noise_params} - mAP: {map:.4f}')
+
+    plt.title('mAP by making the bounding boxes noisy')
+    plt.xlabel('Standard deviation of zero-mean gaussian')
+    plt.ylabel('mAP')
+    plt.xticks(np.arange(0,1,0.1))
+    plt.plot(test_values,maps)
+    plt.show()
+
+    # test 2: noisy BBoxs
+
+    maps = []
+    test_values = np.arange(0,110,10)
+
+    for std in test_values:
+
+        noise_params = {
+            'drop': 0,
+            'mean': 0,
+            'std': std  # video is 1920x1080
+        }
+        gt_noisy = reader.get_gt(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
+
+        frames = sorted(list(set(gt) & set(gt_noisy)))
+        y_true = []
+        y_pred = []
+        for frame in frames:
+            y_true.append(gt[frame])
+            y_pred.append(gt_noisy[frame])
+
+        map = mean_average_precision(y_true, y_pred)
+        maps.append(map)
+        print(f'noise_params: {noise_params} - mAP: {map:.4f}')
+
+    plt.title('mAP by making the bounding boxes noisy')
+    plt.xlabel('Standard deviation of zero-mean gaussian')
+    plt.ylabel('mAP')
+    plt.xticks(np.arange(0,110,10))
+    plt.plot(test_values,maps)
+    plt.show()
 
     # Task 1.2
     detectors = ['det_mask_rcnn.txt', 'det_ssd512.txt', 'det_yolo3.txt']
