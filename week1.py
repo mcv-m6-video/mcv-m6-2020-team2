@@ -40,6 +40,7 @@ def task1_1(path_results=None):
     plt.xlabel('drop prob')
     plt.ylabel('mAP')
     plt.savefig(os.path.join(path_results, 'map_drop_bbox.png')) if path_results else plt.show()
+    plt.close()
 
 
     # add noise to the size and position of bounding boxes
