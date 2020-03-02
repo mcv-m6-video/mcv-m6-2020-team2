@@ -65,6 +65,7 @@ def task1_1(path_results=None):
     plt.xticks(std_values)
     plt.plot(std_values, maps)
     plt.savefig(os.path.join(path_results, 'map_noisy_bbox.png')) if path_results else plt.show()
+    plt.close()
 
 
 def task1_2():
@@ -131,6 +132,7 @@ def task2(path_results=None):
     ax[1].set_ylabel('mean IoU')
     fig.suptitle('noisy annotation')
     plt.savefig(os.path.join(path_results, 'miou_noisy_annot.png')) if path_results else plt.show()
+    plt.close()
 
     # Detector cases
     detectors = ['det_mask_rcnn.txt', 'det_ssd512.txt', 'det_yolo3.txt']
@@ -145,7 +147,7 @@ def task2(path_results=None):
         overlaps = []
         for frame in frames:
             boxes1 = [box[1:] for box in gt[frame]]
-            boxes2 = [box[1:] for box in detections_list[frame]]
+            boxes2 = [box[1:-1] for box in detections_list[frame]]
             iou = mean_intersection_over_union(boxes1, boxes2)
             overlaps.append(iou)
 
@@ -178,6 +180,7 @@ def task2(path_results=None):
         ax[1].set_ylabel('mean IoU')
         fig.suptitle('Detector '+detector.replace('.txt',''))
         plt.savefig(os.path.join(path_results, 'miou_noisy_detections.png')) if path_results else plt.show()
+        plt.close()
 
 
 def task3_4(path_results=None):
