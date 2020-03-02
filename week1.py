@@ -14,7 +14,8 @@ from src.utils.io_optical_flow import read_flow_field, read_grayscale_image
 from src.utils.optical_flow_visualization import plot_optical_flow
 
 
-def task1():
+
+def task1(path_results=None):
     # Task 1.1
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
     gt = reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
@@ -48,7 +49,8 @@ def task1():
     plt.ylabel('mAP')
     plt.xticks(np.arange(0,1,0.1))
     plt.plot(test_values,maps)
-    plt.show()
+    plt.savefig(os.path.join(path_results, 'mAP_drop_bbox.png')) if path_results else plt.show()
+
 
     # test 2: noisy BBoxs
     maps = []
@@ -79,7 +81,7 @@ def task1():
     plt.ylabel('mAP')
     plt.xticks(np.arange(0,110,10))
     plt.plot(test_values,maps)
-    plt.show()
+    plt.savefig(os.path.join(path_results, 'mAP_noisy_bbox.png')) if path_results else plt.show()
 
     # Task 1.2
     detectors = ['det_mask_rcnn.txt', 'det_ssd512.txt', 'det_yolo3.txt']
@@ -99,12 +101,11 @@ def task1():
         print(f'mAP: {map:.4f}')
 
 
-def task2():
+def task2(path_results=None):
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
     gt = reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
 
     # Noisy case
-
     noise_params = {'drop': 0.05, 'mean': 0, 'std': 10}
     gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
 
@@ -144,10 +145,9 @@ def task2():
     ax[1].set_xlabel('#frame')
     ax[1].set_ylabel('mean IoU')
     fig.suptitle('noisy annotation')
-    plt.show()
+    plt.savefig(os.path.join(path_results, 'miou_noisy_annot.png')) if path_results else plt.show()
 
     # Detector cases
-
     detectors = ['det_mask_rcnn.txt', 'det_ssd512.txt', 'det_yolo3.txt']
     detections_path = 'data/AICity_data/train/S03/c010/det/'
 
@@ -192,10 +192,10 @@ def task2():
         ax[1].set_xlabel('#frame')
         ax[1].set_ylabel('mean IoU')
         fig.suptitle('Detector '+detector.replace('.txt',''))
-        plt.show()
+        plt.savefig(os.path.join(path_results, 'miou_noisy_detections.png')) if path_results else plt.show()
 
 
-def task3_4():
+def task3_4(path_results=None):
     pred_path = 'data/optical_flow_results/'
     kitti_data = 'data/data_stereo_flow/training/'
     images = ['045', '157']
@@ -213,17 +213,18 @@ def task3_4():
         flow_pred = read_flow_field(flow_estimation, frame_id=im_idx, plot=plot)
         flow_gt = read_flow_field(gt_non_occ, frame_id=im_idx, plot=plot)
 
+        print('Computing MSEN and PEPN')
         msen, pepn = get_msen_pepn(flow_pred, flow_gt, frame_id=im_idx, th=3, plot=plot)
-        print(f'SEQ-{im_idx}\n  MSEN: {round(msen, 2)}\n  PEPN: {round(pepn, 2)}%')
+        print(f'SEQ-{im_idx}\n  MSEN: {round(msen, 4)}\n  PEPN: {round(pepn, 4)}%')
 
-
-        plot_optical_flow(image_gray, flow_gt[:,:,0:2], 'GT', im_idx, 10)
-        plot_optical_flow(image_gray, flow_pred[:,:,0:2], 'PRED', im_idx, 10)
+        plot_optical_flow(image_gray, flow_gt[:,:,0:2], 'GT', im_idx, 10, path=path_results)
+        plot_optical_flow(image_gray, flow_pred[:,:,0:2], 'PRED', im_idx, 10, path=path_results)
 
 
 
 
 if __name__ == '__main__':
+    path_plots = 'results/'
     #task1()
     #task2()
     task3_4()
