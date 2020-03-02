@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from week1 import task1, task2, task3_4
+from week1 import task1_1, task1_2, task2, task3_4
 
 parser = argparse.ArgumentParser(description='M6 - Video Analysis: Video Surveillance for Road Traffic Monitoring')
 
@@ -14,8 +14,10 @@ if not os.path.exists(path_plots):
     os.makedirs(path_plots)
 
 if args.week == 1:
-    if args.task == 1:
-        task1(path_plots)
+    if args.task == 1_1:
+        task1_1(path_plots)
+    elif args.task == 1_2:
+        task1_2(path_plots)
     elif args.task == 2:
         task2(path_plots)
     elif args.task == 3 or args.task == 4:
