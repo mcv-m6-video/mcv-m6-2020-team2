@@ -17,7 +17,7 @@ if args.week == 1:
     if args.task == 1_1:
         task1_1(path_plots)
     elif args.task == 1_2:
-        task1_2(path_plots)
+        task1_2()
     elif args.task == 2:
         task2(path_plots)
     elif args.task == 3 or args.task == 4:

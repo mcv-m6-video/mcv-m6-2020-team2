@@ -1,8 +1,7 @@
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
 
-def read_flow_field(path:str, frame_id:str, plot:bool=False) -> np.ndarray:
+def read_flow_field(path:str) -> np.ndarray:
     """
     Method based on the provided code from KITTI (flow_read.m)
 
@@ -26,23 +25,10 @@ def read_flow_field(path:str, frame_id:str, plot:bool=False) -> np.ndarray:
 
     flow_field = np.dstack((im_u, im_v, im_valid))
 
-    if plot:
-        plt.imshow((flow_field * 255).astype(np.uint8))
-        plt.axis('off')
-        plt.title(f'Flow Field {frame_id}')
-        plt.show()
-
     return flow_field
 
-def read_grayscale_image(path:str, frame_id:str, plot:bool=False) -> np.ndarray:
-    im = cv2.imread(path, 0)
-    if plot:
-        plt.imshow(im, cmap='gray')
-        plt.axis('off')
-        plt.title(f'Image Sequence {frame_id}')
-        plt.show()
-
-    return  im
+def read_grayscale_image(path:str) -> np.ndarray:
+    return cv2.imread(path, 0)
 
 
 

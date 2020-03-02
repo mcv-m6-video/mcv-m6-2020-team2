@@ -9,7 +9,7 @@ from src.utils.plotutils import video_iou_plot
 
 from src.evaluation.optical_flow_evaluation import get_msen_pepn
 from src.utils.io_optical_flow import read_flow_field, read_grayscale_image
-from src.utils.optical_flow_visualization import plot_optical_flow
+from src.utils.optical_flow_visualization import arrow_optical_flow_plot, optical_flow_magnitud_plot, histogram_with_mean_plot
 
 
 def task1_1(save_path=None):
@@ -102,11 +102,11 @@ def task2(save_path=None):
                        save_path=save_path)
 
 
-def task3_4(path_results=None):
+def task3_4(save_path=None):
     pred_path = 'data/optical_flow_results/'
     kitti_data = 'data/data_stereo_flow/training/'
     images = ['045', '157']
-    plot = False
+    dilate=True
 
     for im_idx in images:
         im_name = f'000{im_idx}_10.png'
@@ -115,20 +115,28 @@ def task3_4(path_results=None):
         im_path = os.path.join(kitti_data, f'image_0/{im_name}')
         gt_non_occ = os.path.join(kitti_data, f'flow_noc/{im_name}')
 
-        image_gray = read_grayscale_image(im_path, frame_id=im_idx, plot=plot)
-        flow_pred = read_flow_field(flow_estimation, frame_id=im_idx, plot=plot)
-        flow_gt = read_flow_field(gt_non_occ, frame_id=im_idx, plot=plot)
+        image_gray = read_grayscale_image(im_path)
+        flow_pred = read_flow_field(flow_estimation)
+        flow_gt = read_flow_field(gt_non_occ)
 
-        print('Computing MSEN and PEPN')
-        msen, pepn = get_msen_pepn(flow_pred, flow_gt, frame_id=im_idx, th=3, plot=plot)
+        error_flow, non_occ_err_flow, msen, pepn = get_msen_pepn(flow_pred, flow_gt, th=3)
         print(f'SEQ-{im_idx}\n  MSEN: {round(msen, 4)}\n  PEPN: {round(pepn, 4)}%')
 
-        plot_optical_flow(image_gray, flow_gt[:, :, 0:2], 'GT', im_idx, 10, path=path_results)
-        plot_optical_flow(image_gray, flow_pred[:, :, 0:2], 'PRED', im_idx, 10, path=path_results)
+
+
+        optical_flow_magnitud_plot(error_flow, im_idx, save_path, title="Error_Flow", dilate=dilate)
+        histogram_with_mean_plot(title='Error Histogram', idx=im_idx, values=non_occ_err_flow, mean_value=msen, save_path=save_path)
+        optical_flow_magnitud_plot(flow_pred, im_idx, save_path, title="Predicted_Flow", dilate=dilate)
+        optical_flow_magnitud_plot(flow_gt, im_idx, save_path, title="GT_Flow", dilate=dilate)
+
+        # Task 4 plot
+        arrow_optical_flow_plot(image_gray, flow_gt[:, :, 0:2], 'GT', im_idx, 10, path=save_path)
+        arrow_optical_flow_plot(image_gray, flow_pred[:, :, 0:2], 'PRED', im_idx, 10, path=save_path)
+
 
 
 if __name__ == '__main__':
     # task1_1()
     # task1_2()
-    task2()
-    # task3_4()
+    # task2()
+    task3_4()
