@@ -17,7 +17,7 @@ from src.utils.optical_flow_visualization import plot_optical_flow
 def task1():
     # Task 1.1
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
-    gt = reader.get_gt(classes=['car'], group_by_frame=True, boxes_only=True)
+    gt = reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
 
     # test 1: dropping BBoxs
 
@@ -31,7 +31,7 @@ def task1():
             'mean': 0,
             'std': 0  # video is 1920x1080
         }
-        gt_noisy = reader.get_gt(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
+        gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
 
         frames = sorted(list(set(gt) & set(gt_noisy)))
         y_true = []
@@ -63,7 +63,7 @@ def task1():
             'mean': 0,
             'std': std  # video is 1920x1080
         }
-        gt_noisy = reader.get_gt(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
+        gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
 
         frames = sorted(list(set(gt) & set(gt_noisy)))
         y_true = []
