@@ -8,8 +8,8 @@ def mean_average_precision(y_true, y_pred, classes=None):
     Mean Average Precision across classes.
 
     Args:
-        y_true: [[[cls,xtl,ytl,xbr,ybr],...],...]
-        y_pred: [[[cls,xtl,ytl,xbr,ybr,score],...],...]
+        y_true: [[[label,xtl,ytl,xbr,ybr],...],...]
+        y_pred: [[[label,xtl,ytl,xbr,ybr,score],...],...]
         classes: list of considered classes.
     """
 
@@ -45,7 +45,7 @@ def average_precision(y_true, y_pred):
         ap = voc_ap(y_true, y_pred_sorted)
     else:
         # average metrics across n random orderings
-        n = 10
+        n = 1
         aps = []
         for _ in range(n):
             shuffled_ind = np.random.permutation(len(y_pred))

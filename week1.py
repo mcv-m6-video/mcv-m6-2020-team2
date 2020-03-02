@@ -14,17 +14,16 @@ from src.utils.io_optical_flow import read_flow_field, read_grayscale_image
 from src.utils.optical_flow_visualization import plot_optical_flow
 
 
-def task1(path_results=None):
-    # Task 1.1
+def task1_1(path_results=None):
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
-    gt = reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
+    gt = reader.get_annotations(classes=['car'])
 
     # add probability to delete bounding boxes
     drop_values = np.linspace(0, 1, 11)
     maps = []
     for drop in drop_values:
         noise_params = {'drop': drop, 'mean': 0, 'std': 0}
-        gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
+        gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params)
 
         frames = sorted(list(set(gt) & set(gt_noisy)))
         y_true = []
@@ -48,7 +47,7 @@ def task1(path_results=None):
     maps = []
     for std in std_values:
         noise_params = {'drop': 0, 'mean': 0, 'std': std}
-        gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
+        gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params)
 
         frames = sorted(list(set(gt) & set(gt_noisy)))
         y_true = []
@@ -66,22 +65,24 @@ def task1(path_results=None):
     plt.plot(std_values, maps)
     plt.savefig(os.path.join(path_results, 'map_noisy_bbox.png')) if path_results else plt.show()
 
-    # Task 1.2
-    detectors = ['det_mask_rcnn.txt', 'det_ssd512.txt', 'det_yolo3.txt']
-    detections_path = 'data/AICity_data/train/S03/c010/det/'
 
-    for detector in detectors:
-        print("Detector: ", detector)
-        dets_reader = AICityChallengeAnnotationReader(path=detections_path + detector)
-        detections_list = dets_reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
-        frames = sorted(list(set(gt) & set(detections_list)))
+def task1_2():
+    reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
+    gt = reader.get_annotations(classes=['car'])
+
+    for detector in ['mask_rcnn', 'ssd512', 'yolo3']:
+        reader = AICityChallengeAnnotationReader(path=f'data/AICity_data/train/S03/c010/det/det_{detector}.txt')
+        det = reader.get_annotations(classes=['car'])
+
+        frames = sorted(list(set(gt) & set(det)))
         y_true = []
         y_pred = []
         for frame in frames:
             y_true.append(gt[frame])
-            y_pred.append(detections_list[frame])
+            y_pred.append(det[frame])
+
         map = mean_average_precision(y_true, y_pred)
-        print(f'mAP: {map:.4f}')
+        print(f'{detector} mAP: {map:.4f}')
 
 
 def task2(path_results=None):
@@ -205,6 +206,7 @@ def task3_4(path_results=None):
 
 
 if __name__ == '__main__':
-    task1()
+    #task1_1()
+    task1_2()
     #task2()
     #task3_4()
