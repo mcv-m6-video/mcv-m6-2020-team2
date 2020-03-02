@@ -14,23 +14,16 @@ from src.utils.io_optical_flow import read_flow_field, read_grayscale_image
 from src.utils.optical_flow_visualization import plot_optical_flow
 
 
-
 def task1(path_results=None):
     # Task 1.1
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
     gt = reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
 
-    # test 1: dropping BBoxs
+    # add probability to delete bounding boxes
+    drop_values = np.linspace(0, 1, 11)
     maps = []
-    test_values = np.arange(0,0.99,0.1)
-
-    for drop in test_values:
-
-        noise_params = {
-            'drop': drop,
-            'mean': 0,
-            'std': 0  # video is 1920x1080
-        }
+    for drop in drop_values:
+        noise_params = {'drop': drop, 'mean': 0, 'std': 0}
         gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
 
         frames = sorted(list(set(gt) & set(gt_noisy)))
@@ -42,27 +35,19 @@ def task1(path_results=None):
 
         map = mean_average_precision(y_true, y_pred)
         maps.append(map)
-        print(f'noise_params: {noise_params} - mAP: {map:.4f}')
 
-    plt.title('mAP by making the bounding boxes noisy')
-    plt.xlabel('Standard deviation of zero-mean gaussian')
+    plt.plot(drop_values, maps)
+    plt.xticks(drop_values)
+    plt.xlabel('drop prob')
     plt.ylabel('mAP')
-    plt.xticks(np.arange(0,1,0.1))
-    plt.plot(test_values,maps)
-    plt.savefig(os.path.join(path_results, 'mAP_drop_bbox.png')) if path_results else plt.show()
+    plt.savefig(os.path.join(path_results, 'map_drop_bbox.png')) if path_results else plt.show()
 
 
-    # test 2: noisy BBoxs
+    # add noise to the size and position of bounding boxes
+    std_values = np.linspace(0, 100, 11)
     maps = []
-    test_values = np.arange(0,110,10)
-
-    for std in test_values:
-
-        noise_params = {
-            'drop': 0,
-            'mean': 0,
-            'std': std  # video is 1920x1080
-        }
+    for std in std_values:
+        noise_params = {'drop': 0, 'mean': 0, 'std': std}
         gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
 
         frames = sorted(list(set(gt) & set(gt_noisy)))
@@ -74,14 +59,12 @@ def task1(path_results=None):
 
         map = mean_average_precision(y_true, y_pred)
         maps.append(map)
-        print(f'noise_params: {noise_params} - mAP: {map:.4f}')
 
-    plt.title('mAP by making the bounding boxes noisy')
-    plt.xlabel('Standard deviation of zero-mean gaussian')
+    plt.xlabel('std')
     plt.ylabel('mAP')
-    plt.xticks(np.arange(0,110,10))
-    plt.plot(test_values,maps)
-    plt.savefig(os.path.join(path_results, 'mAP_noisy_bbox.png')) if path_results else plt.show()
+    plt.xticks(std_values)
+    plt.plot(std_values, maps)
+    plt.savefig(os.path.join(path_results, 'map_noisy_bbox.png')) if path_results else plt.show()
 
     # Task 1.2
     detectors = ['det_mask_rcnn.txt', 'det_ssd512.txt', 'det_yolo3.txt']
@@ -221,10 +204,7 @@ def task3_4(path_results=None):
         plot_optical_flow(image_gray, flow_pred[:,:,0:2], 'PRED', im_idx, 10, path=path_results)
 
 
-
-
 if __name__ == '__main__':
-    path_plots = 'results/'
-    #task1()
+    task1()
     #task2()
-    task3_4()
+    #task3_4()

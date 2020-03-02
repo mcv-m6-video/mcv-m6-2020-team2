@@ -23,8 +23,9 @@ def mean_average_precision(y_true, y_pred, classes=None):
         y_pred_cls = [[box[1:] for box in boxlist if box[0] == cls] for boxlist in y_pred]
         ap = average_precision(y_true_cls, y_pred_cls)
         aps.append(ap)
+    map = np.mean(aps) if aps else 0
 
-    return np.mean(aps)
+    return map
 
 
 def average_precision(y_true, y_pred):
@@ -73,7 +74,7 @@ def voc_ap(y_true, y_pred, ovthresh=0.5):
     for R in y_true:
         bbox = np.array(R)
         det = [False] * len(R)
-        npos += 1
+        npos += len(R)
         class_recs.append({"bbox": bbox, "det": det})
 
     image_ids = [box[0] for box in y_pred]
