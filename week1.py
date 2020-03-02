@@ -179,7 +179,7 @@ def task2(path_results=None):
         ax[1].set_xlabel('#frame')
         ax[1].set_ylabel('mean IoU')
         fig.suptitle('Detector '+detector.replace('.txt',''))
-        plt.savefig(os.path.join(path_results, 'miou_noisy_detections.png')) if path_results else plt.show()
+        plt.savefig(os.path.join(path_results, 'miou_noisy_detections_'+detector.replace('.txt','')+'.png')) if path_results else plt.show()
         plt.close()
 
 
