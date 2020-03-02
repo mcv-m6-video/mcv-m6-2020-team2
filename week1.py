@@ -20,7 +20,6 @@ def task1():
     gt = reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
 
     # test 1: dropping BBoxs
-
     maps = []
     test_values = np.arange(0,0.99,0.1)
 
@@ -52,7 +51,6 @@ def task1():
     plt.show()
 
     # test 2: noisy BBoxs
-
     maps = []
     test_values = np.arange(0,110,10)
 
@@ -102,7 +100,7 @@ def task1():
 
 
 def task2():
-        reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
+    reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
     gt = reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
 
     # Noisy case
