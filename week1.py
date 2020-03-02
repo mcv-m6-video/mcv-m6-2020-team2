@@ -87,11 +87,11 @@ def task1_2():
 
 def task2(path_results=None):
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
-    gt = reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
+    gt = reader.get_annotations(classes=['car'], group_by_frame=True)
 
     # Noisy case
     noise_params = {'drop': 0.05, 'mean': 0, 'std': 10}
-    gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params, group_by_frame=True, boxes_only=True)
+    gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params, group_by_frame=True)
 
     frames = sorted(list(set(gt) & set(gt_noisy)))
     overlaps = []
@@ -138,7 +138,7 @@ def task2(path_results=None):
     for detector in detectors:
         print("Detector: ", detector)
         dets_reader = AICityChallengeAnnotationReader(path=detections_path + detector)
-        detections_list = dets_reader.get_annotations(classes=['car'], group_by_frame=True, boxes_only=True)
+        detections_list = dets_reader.get_annotations(classes=['car'], group_by_frame=True)
 
         frames = sorted(list(set(gt) & set(detections_list)))
         overlaps = []
