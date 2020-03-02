@@ -1,6 +1,6 @@
 import numpy as np
 
-from .intersection_over_union import vec_intersecion_over_union
+from src.evaluation.intersection_over_union import vec_intersecion_over_union
 
 
 def mean_average_precision(y_true, y_pred, classes=None):
@@ -45,7 +45,7 @@ def average_precision(y_true, y_pred):
         ap = voc_ap(y_true, y_pred_sorted)
     else:
         # average metrics across n random orderings
-        n = 1
+        n = 10
         aps = []
         for _ in range(n):
             shuffled_ind = np.random.permutation(len(y_pred))
