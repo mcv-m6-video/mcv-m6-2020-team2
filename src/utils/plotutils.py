@@ -21,7 +21,7 @@ def video_iou_plot(gt, det, video_path, title='', save_path=None):
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 
-    fig, ax = plt.subplots(2)
+    fig, ax = plt.subplots(2, 1, figsize=(10, 5))
     image = ax[0].imshow(np.zeros((height, width)))
     line, = ax[1].plot(frames, overlaps)
     artists = [image, line]
@@ -38,8 +38,6 @@ def video_iou_plot(gt, det, video_path, title='', save_path=None):
         return artists
 
     ani = animation.FuncAnimation(fig, update, len(frames), interval=2, blit=True)
-    if save_path is not None:
-        ani.save(os.path.join(save_path, 'video_iou.gif'), writer='ffmpeg')
 
     ax[0].set_xticks([])
     ax[0].set_yticks([])
@@ -47,7 +45,10 @@ def video_iou_plot(gt, det, video_path, title='', save_path=None):
     ax[1].set_xlabel('#frame')
     ax[1].set_ylabel('mean IoU')
     fig.suptitle(title)
-    plt.show()
+    if save_path is not None:
+        ani.save(os.path.join(save_path, 'video_iou.gif'), writer='imagemagick')
+    else:
+        plt.show()
 
 
 def optical_flow_arrow_plot(gray_frame:np.ndarray, flow_image:np.ndarray, typee:str, frame_id:str, sampling_step:int, path:str):

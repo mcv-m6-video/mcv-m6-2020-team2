@@ -86,18 +86,21 @@ def task1_2():
         print(f'{detector} mAP: {map:.4f}')
 
 
-def task2(save_path=None):
+def task2(start=0, length=100, save_path=None):
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
     gt = reader.get_annotations(classes=['car'])
+    gt = {frame: gt[frame] for frame in range(start, start+length)}
 
     noise_params = {'drop': 0.05, 'mean': 0, 'std': 10}
     gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params)
+    gt_noisy = {frame: gt_noisy[frame] for frame in range(start, start+length)}
     video_iou_plot(gt, gt_noisy, video_path='data/AICity_data/train/S03/c010/vdo.avi', title='noisy annotations',
                    save_path=save_path)
 
     for detector in ['mask_rcnn', 'ssd512', 'yolo3']:
         reader = AICityChallengeAnnotationReader(path=f'data/AICity_data/train/S03/c010/det/det_{detector}.txt')
         det = reader.get_annotations(classes=['car'])
+        det = {frame: det[frame] for frame in range(start, start+length)}
         video_iou_plot(gt, det, video_path='data/AICity_data/train/S03/c010/vdo.avi', title=f'{detector} detections',
                        save_path=save_path)
 
@@ -128,7 +131,7 @@ def task3_4(save_path=None):
 
 
 if __name__ == '__main__':
-    # task1_1()
-    # task1_2()
-    # task2()
-    task3_4()
+    #task1_1()
+    #task1_2()
+    task2(start=550, save_path='results/week1')
+    #task3_4()
