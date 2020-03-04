@@ -1,8 +1,9 @@
 import os
 from collections import defaultdict, OrderedDict
-
 import numpy as np
 import xmltodict
+
+from src.utils.detection import Detection
 
 
 def parse_annotations_from_xml(path):
@@ -15,7 +16,7 @@ def parse_annotations_from_xml(path):
         label = track['@label']
         boxes = track['box']
         for box in boxes:
-            annotations.append([
+            annotations.append(Detection(
                 int(box['@frame']),
                 int(id),
                 label,
@@ -23,7 +24,7 @@ def parse_annotations_from_xml(path):
                 float(box['@ytl']),
                 float(box['@xbr']),
                 float(box['@ybr'])
-            ])
+            ))
 
     return annotations
 
@@ -39,7 +40,7 @@ def parse_annotations_from_txt(path):
     annotations = []
     for line in lines:
         data = line.split(',')
-        annotations.append([
+        annotations.append(Detection(
             int(data[0]) - 1,
             int(data[1]),
             'car',
@@ -48,7 +49,7 @@ def parse_annotations_from_txt(path):
             float(data[2]) + float(data[4]),
             float(data[3]) + float(data[5]),
             float(data[6])
-        ])
+        ))
 
     return annotations
 
@@ -66,35 +67,38 @@ def parse_annotations(path):
 class AICityChallengeAnnotationReader:
 
     def __init__(self, path):
-        self.gts = parse_annotations(path)
-        self.classes = np.unique([x[1] for x in self.gts])
+        self.annotations = parse_annotations(path)
+        self.classes = np.unique([detection.label for detection in self.annotations])
 
     def get_annotations(self, classes=None, noise_params=None, group_by_frame=True):
         """
         Returns:
-            res: {frame: [[id,label,xtl,ytl,xbr,ybr(,score)],...]} if group_by_frame=True
+            detections: {frame: [Detection,...]} if group_by_frame=True
         """
 
         if classes is None:
             classes = self.classes
 
-        res = []
-        for gt in self.gts:
-            if gt[2] in classes:  # filter by class
+        detections = []
+        for detection in self.annotations:
+            if detection.label in classes:  # filter by class
                 if noise_params:  # add noise
                     if np.random.random() > noise_params['drop']:
-                        box_noisy = list(gt[3:7] + np.random.normal(noise_params['mean'], noise_params['std'], 4))
-                        res.append(gt[:3] + box_noisy + gt[7:])
+                        detection.xtl += np.random.normal(noise_params['mean'], noise_params['std'], 1)[0]
+                        detection.ytl += np.random.normal(noise_params['mean'], noise_params['std'], 1)[0]
+                        detection.xbr += np.random.normal(noise_params['mean'], noise_params['std'], 1)[0]
+                        detection.ybr += np.random.normal(noise_params['mean'], noise_params['std'], 1)[0]
+                        detections.append(detection)
                 else:
-                    res.append(gt[:])
+                    detections.append(detection)
 
         if group_by_frame:
             grouped = defaultdict(list)
-            for gt in res:
-                grouped[gt[0]].append(gt[2:])
-            res = OrderedDict(sorted(grouped.items()))
+            for detection in detections:
+                grouped[detection.frame].append(detection)
+            detections = OrderedDict(sorted(grouped.items()))
 
-        return res
+        return detections
 
 
 if __name__ == '__main__':

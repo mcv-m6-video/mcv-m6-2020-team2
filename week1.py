@@ -82,7 +82,7 @@ def task1_2():
             y_true.append(gt[frame])
             y_pred.append(det[frame])
 
-        map = mean_average_precision(y_true, y_pred)
+        map = mean_average_precision(y_true, y_pred, conf_scores=True)
         print(f'{detector} mAP: {map:.4f}')
 
 
@@ -139,6 +139,6 @@ def task3_4(save_path=None):
 
 if __name__ == '__main__':
     #task1_1()
-    #task1_2()
+    task1_2()
     #task2(start=550, save_path='results/week1')
-    task3_4()
+    #task3_4()
