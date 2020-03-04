@@ -109,29 +109,36 @@ def task3_4(save_path=None):
     pred_path = 'data/results_opticalflow_kitti'
     kitti_data = 'data/data_stereo_flow/training'
 
+    # Task 3
     dilate = True
-    for im_idx in ['045', '157']:
-        filename = f'000{im_idx}_10.png'
+    for frame_id in ['045', '157']:
+        filename = f'000{frame_id}_10.png'
 
         flow_pred = read_flow_field(os.path.join(pred_path, f'LKflow_{filename}'))
         flow_gt = read_flow_field(os.path.join(kitti_data, f'flow_noc/{filename}'))
 
         error_flow, non_occ_err_flow, msen, pepn = get_msen_pepn(flow_pred, flow_gt, th=3)
-        print(f'SEQ-{im_idx}\n  MSEN: {round(msen, 4)}\n  PEPN: {round(pepn, 4)}%')
+        print(f'SEQ-{frame_id}\n  MSEN: {round(msen, 4)}\n  PEPN: {round(pepn, 4)}%')
 
-        optical_flow_magnitude_plot(error_flow, im_idx, save_path, title="Error_Flow", dilate=dilate)
-        histogram_with_mean_plot(title='Error Histogram', idx=im_idx, values=non_occ_err_flow, mean_value=msen, save_path=save_path)
-        optical_flow_magnitude_plot(flow_pred, im_idx, save_path, title="Predicted_Flow", dilate=dilate)
-        optical_flow_magnitude_plot(flow_gt, im_idx, save_path, title="GT_Flow", dilate=dilate)
+        plt.imshow(error_flow)
+        plt.title(f'Error_Flow-{frame_id}')
+        plt.axis('off')
+        plt.show()
+        if save_path is not None:
+            plt.savefig(os.path.join(save_path, f'error_flow_{frame_id}.png'))
 
-        # Task 4 plot
+        histogram_with_mean_plot(title='Error Histogram', idx=frame_id, values=non_occ_err_flow, mean_value=msen, save_path=save_path)
+        optical_flow_magnitude_plot(flow_pred, frame_id, save_path, title="Predicted_Flow", dilate=dilate)
+        optical_flow_magnitude_plot(flow_gt, frame_id, save_path, title="GT_Flow", dilate=dilate)
+
+        # Task 4
         image_gray = read_grayscale_image(os.path.join(kitti_data, 'image_0', filename))
-        optical_flow_arrow_plot(image_gray, flow_gt[:, :, 0:2], 'GT', im_idx, 10, path=save_path)
-        optical_flow_arrow_plot(image_gray, flow_pred[:, :, 0:2], 'PRED', im_idx, 10, path=save_path)
+        optical_flow_arrow_plot(image_gray, flow_gt[:, :, 0:2], 'GT', frame_id, 10, path=save_path)
+        optical_flow_arrow_plot(image_gray, flow_pred[:, :, 0:2], 'PRED', frame_id, 10, path=save_path)
 
 
 if __name__ == '__main__':
     #task1_1()
     #task1_2()
-    task2(start=550, save_path='results/week1')
-    #task3_4()
+    #task2(start=550, save_path='results/week1')
+    task3_4()
