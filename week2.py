@@ -1,7 +1,58 @@
+import os
 import cv2
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from tqdm import trange
 
-def task1():
-    #TODO Gaussian. Implementation
+from src.utils.aicity_reader import AICityChallengeAnnotationReader
+from src.evaluation.average_precision import mean_average_precision
+from src.segmentation.background_estimation import GaussianModelling
+from src.utils.processing import denoise, fill_holes, bounding_boxes
+
+
+VIDEO_LENGTH = 2141
+
+def task1(save_path=None, visualize=False):
+    # EVALUATION CONSIDERING PARKED CARS
+
+    reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
+    gt = reader.get_annotations(classes=['car'])
+
+    bg_model = GaussianModelling(video_path='data/AICity_data/train/S03/c010/vdo.avi')
+    bg_model.fit(start=0, length=int(VIDEO_LENGTH*0.25))
+
+    y_true = []
+    y_pred = []
+    for frame in trange(int(VIDEO_LENGTH*0.25), VIDEO_LENGTH, desc='obtaining foreground and detecting objects'):
+        segmentation = bg_model.evaluate(frame=frame, alpha=4)
+        segmentation_denoised = denoise(segmentation)
+        segmentation_filled = fill_holes(segmentation_denoised)
+
+        y_pred.append(bounding_boxes(segmentation_filled, frame=frame, min_area=200))
+        y_true.append(gt[frame])
+
+    ap = mean_average_precision(y_true, y_pred, classes=['car'])
+    print(f'AP (considering parked cars): {ap:.4f}')
+
+    if visualize:
+        F = 600
+
+        fig,ax = plt.subplots()
+        ax.imshow(segmentation_filled)
+
+        for item in y_pred[F-int(VIDEO_LENGTH*0.25)]:
+            rect = patches.Rectangle((item.xtl,item.ytl),item.xbr-item.xtl,item.ybr-item.ytl,fill=False,linewidth=1,edgecolor='r')
+            ax.add_patch(rect)
+        for item in y_true[F-int(VIDEO_LENGTH*0.25)]:
+            rect = patches.Rectangle((item.xtl,item.ytl),item.xbr-item.xtl,item.ybr-item.ytl,fill=False,linewidth=1,edgecolor='g')
+            ax.add_patch(rect)
+
+        ax.set_axis_off()
+        plt.tight_layout()
+        plt.show()
+
+    # TODO: EVALUATION NOT CONSIDERING PARKED CARS
+
     return
 
 def task2():
