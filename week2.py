@@ -13,10 +13,8 @@ from src.utils.processing import denoise, fill_holes, bounding_boxes
 VIDEO_LENGTH = 2141
 
 def task1(save_path=None, visualize=False):
-    # EVALUATION CONSIDERING PARKED CARS
-
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
-    gt = reader.get_annotations(classes=['car'])
+    gt = reader.get_annotations(classes=['car'], only_not_parked=True)
 
     bg_model = GaussianModelling(video_path='data/AICity_data/train/S03/c010/vdo.avi')
     bg_model.fit(start=0, length=int(VIDEO_LENGTH*0.25))
@@ -32,10 +30,10 @@ def task1(save_path=None, visualize=False):
         y_true.append(gt[frame])
 
     ap = mean_average_precision(y_true, y_pred, classes=['car'])
-    print(f'AP (considering parked cars): {ap:.4f}')
+    print(f'AP: {ap:.4f}')
 
     if visualize:
-        F = 600
+        F = 550
 
         fig,ax = plt.subplots()
         ax.imshow(segmentation_filled)
@@ -50,8 +48,6 @@ def task1(save_path=None, visualize=False):
         ax.set_axis_off()
         plt.tight_layout()
         plt.show()
-
-    # TODO: EVALUATION NOT CONSIDERING PARKED CARS
 
     return
 

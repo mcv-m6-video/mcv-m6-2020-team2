@@ -16,10 +16,15 @@ def parse_annotations_from_xml(path):
         label = track['@label']
         boxes = track['box']
         for box in boxes:
+            if label == 'car':
+                parked = box['attribute']['#text'].lower() == 'true'
+            else:
+                parked = False
             annotations.append(Detection(
                 int(box['@frame']),
                 int(id),
                 label,
+                parked,
                 float(box['@xtl']),
                 float(box['@ytl']),
                 float(box['@xbr']),
@@ -44,6 +49,7 @@ def parse_annotations_from_txt(path):
             int(data[0]) - 1,
             int(data[1]),
             'car',
+            None,
             float(data[2]),
             float(data[3]),
             float(data[2]) + float(data[4]),
@@ -70,7 +76,7 @@ class AICityChallengeAnnotationReader:
         self.annotations = parse_annotations(path)
         self.classes = np.unique([detection.label for detection in self.annotations])
 
-    def get_annotations(self, classes=None, noise_params=None, group_by_frame=True):
+    def get_annotations(self, classes=None, noise_params=None, group_by_frame=True, only_not_parked=False):
         """
         Returns:
             detections: {frame: [Detection,...]} if group_by_frame=True
@@ -82,6 +88,8 @@ class AICityChallengeAnnotationReader:
         detections = []
         for detection in self.annotations:
             if detection.label in classes:  # filter by class
+                if only_not_parked and detection.parked:
+                    continue
                 if noise_params:  # add noise
                     if np.random.random() > noise_params['drop']:
                         detection.xtl += np.random.normal(noise_params['mean'], noise_params['std'], 1)[0]

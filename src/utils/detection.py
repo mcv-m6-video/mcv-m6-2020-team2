@@ -1,8 +1,9 @@
 class Detection(object):
-    def __init__(self, frame, id, label, xtl, ytl, xbr, ybr, confidence=1):
+    def __init__(self, frame, id, label, parked, xtl, ytl, xbr, ybr, confidence=1):
         self.frame = frame
         self.id = id
         self.label = label
+        self.parked = parked
         self.xtl = xtl
         self.ytl = ytl
         self.xbr = xbr
@@ -11,7 +12,7 @@ class Detection(object):
 
     def __str__(self):
         bbox = self.get_bbox()
-        return '\n frame={0}, id={1}, label={2}, confidence={3} bbox={4}'.format(self.frame, self.id, self.label, self.confidence, bbox)
+        return '\n frame={0}, id={1}, label={2}, parked={3}, confidence={4} bbox={5}'.format(self.frame, self.id, self.label, self.parked, self.confidence, bbox)
 
     def get_bbox(self):
         return [self.xtl, self.ytl, self.xbr, self.ybr]

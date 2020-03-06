@@ -7,17 +7,17 @@ from src.utils.detection import Detection
 
 def denoise(img):
     # Median filter for impulsive noise
-    img = cv2.medianBlur(img, ksize=11)
+    img = cv2.medianBlur(img, ksize=3)
     # # Non-local means denoising (slow!)
     # img = cv2.fastNlMeansDenoising(img, h=11, templateWindowSize=7, searchWindowSize=21)
     # Opening
-    img = cv2.morphologyEx(img, cv2.MORPH_OPEN, np.ones((11, 11), np.uint8))
+    img = cv2.morphologyEx(img, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11)))
 
     return img
 
 def fill_holes(img):
-    # Closing for connecting close segments
-    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    # Connect close segments
+    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11)))
 
     # Floodfill
     img_floodfill = img.copy()
@@ -34,6 +34,6 @@ def bounding_boxes(img, frame, min_area=100):
     for region in regionprops(label(img)):
         if region.area >= min_area:
             ytl, xtl, ybr, xbr = region.bbox
-            detections.append(Detection(frame, None, 'car', xtl, ytl, xbr, ybr))
+            detections.append(Detection(frame, None, 'car', False, xtl, ytl, xbr, ybr))
 
     return detections
