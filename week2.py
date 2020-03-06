@@ -27,7 +27,10 @@ def task1(save_path=None, visualize=False):
         segmentation_filled = fill_holes(segmentation_denoised)
 
         y_pred.append(bounding_boxes(segmentation_filled, frame=frame, min_area=200))
-        y_true.append(gt[frame])
+        if frame in gt.keys():
+            y_true.append(gt[frame])
+        else:
+            y_true.append([])
 
     ap = mean_average_precision(y_true, y_pred, classes=['car'])
     print(f'AP: {ap:.4f}')
