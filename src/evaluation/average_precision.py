@@ -38,7 +38,12 @@ def average_precision(y_true, y_pred):
     """
 
     y_pred = [(i, det) for i in range(len(y_pred)) for det in y_pred[i]]  # flatten
-    if y_pred[0][1].score is not None:
+    if len(y_pred) == 0:
+        return 0
+    else:
+        with_scores = y_pred[0][1].score is not None
+
+    if with_scores:
         # sort by confidence
         sorted_ind = np.argsort([-det[1].score for det in y_pred])
         y_pred_sorted = [y_pred[i] for i in sorted_ind]
