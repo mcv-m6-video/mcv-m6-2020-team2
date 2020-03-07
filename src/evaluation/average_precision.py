@@ -3,7 +3,7 @@ import numpy as np
 from src.evaluation.intersection_over_union import vec_intersecion_over_union
 
 
-def mean_average_precision(y_true, y_pred, classes=None, conf_scores=False):
+def mean_average_precision(y_true, y_pred, classes=None):
     """
     Mean Average Precision across classes.
 
@@ -21,14 +21,14 @@ def mean_average_precision(y_true, y_pred, classes=None, conf_scores=False):
         # filter by class
         y_true_cls = [[det for det in boxlist if det.label == cls] for boxlist in y_true]
         y_pred_cls = [[det for det in boxlist if det.label == cls] for boxlist in y_pred]
-        ap = average_precision(y_true_cls, y_pred_cls, conf_scores)
+        ap = average_precision(y_true_cls, y_pred_cls)
         aps.append(ap)
     map = np.mean(aps) if aps else 0
 
     return map
 
 
-def average_precision(y_true, y_pred, conf_scores):
+def average_precision(y_true, y_pred):
     """
     Average Precision with or without confidence scores.
 
@@ -38,7 +38,7 @@ def average_precision(y_true, y_pred, conf_scores):
     """
 
     y_pred = [(i, det) for i in range(len(y_pred)) for det in y_pred[i]]  # flatten
-    if conf_scores:
+    if y_pred[0][1].score is not None:
         # sort by confidence
         sorted_ind = np.argsort([-det[1].score for det in y_pred])
         y_pred_sorted = [y_pred[i] for i in sorted_ind]
