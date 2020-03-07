@@ -12,8 +12,8 @@ def video_iou_plot(gt, det, video_path, title='', save_path=None):
     frames = sorted(list(set(gt) & set(det)))
     overlaps = []
     for frame in frames:
-        boxes1 = [detection.get_bbox() for detection in gt[frame]]
-        boxes2 = [detection.get_bbox() for detection in det[frame]]
+        boxes1 = [d.bbox for d in gt[frame]]
+        boxes2 = [d.bbox for d in det[frame]]
         iou = mean_intersection_over_union(boxes1, boxes2)
         overlaps.append(iou)
 
@@ -29,12 +29,10 @@ def video_iou_plot(gt, det, video_path, title='', save_path=None):
     def update(i):
         cap.set(cv2.CAP_PROP_POS_FRAMES, frames[i])
         ret, img = cap.read()
-        for detection in gt[frames[i]]:
-            box = detection.get_bbox()
-            cv2.rectangle(img, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 255, 0), 2)
-        for detection in det[frames[i]]:
-            box = detection.get_bbox()
-            cv2.rectangle(img, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 255, 0), 2)
+        for d in gt[frames[i]]:
+            cv2.rectangle(img, (int(d.xtl), int(d.ytl)), (int(d.xbr), int(d.ybr)), (0, 255, 0), 2)
+        for d in det[frames[i]]:
+            cv2.rectangle(img, (int(d.xtl), int(d.ytl)), (int(d.xbr), int(d.ybr)), (0, 0, 255), 2)
         artists[0].set_data(img[:, :, ::-1])
         artists[1].set_data(frames[:i + 1], overlaps[:i + 1])
         return artists

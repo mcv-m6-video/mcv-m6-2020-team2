@@ -138,7 +138,7 @@ def task3_4(save_path=None):
 
 
 if __name__ == '__main__':
-    #task1_1()
-    task1_2()
-    #task2(start=550, save_path='results/week1')
+    task1_1()
+    #task1_2()
+    #task2(start=550)
     #task3_4()

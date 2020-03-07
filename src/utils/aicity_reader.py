@@ -1,4 +1,5 @@
 import os
+from copy import deepcopy
 from collections import defaultdict, OrderedDict
 import numpy as np
 import xmltodict
@@ -19,16 +20,16 @@ def parse_annotations_from_xml(path):
             if label == 'car':
                 parked = box['attribute']['#text'].lower() == 'true'
             else:
-                parked = False
+                parked = None
             annotations.append(Detection(
-                int(box['@frame']),
-                int(id),
-                label,
-                parked,
-                float(box['@xtl']),
-                float(box['@ytl']),
-                float(box['@xbr']),
-                float(box['@ybr'])
+                frame=int(box['@frame']),
+                id=int(id),
+                label=label,
+                xtl=float(box['@xtl']),
+                ytl=float(box['@ytl']),
+                xbr=float(box['@xbr']),
+                ybr=float(box['@ybr']),
+                parked=parked
             ))
 
     return annotations
@@ -36,7 +37,7 @@ def parse_annotations_from_xml(path):
 
 def parse_annotations_from_txt(path):
     """
-    MOTChallenge format [frame,ID,left,top,width,height,conf,-1,-1,-1]
+    MOTChallenge format [frame, ID, left, top, width, height, conf, -1, -1, -1]
     """
 
     with open(path) as f:
@@ -46,15 +47,14 @@ def parse_annotations_from_txt(path):
     for line in lines:
         data = line.split(',')
         annotations.append(Detection(
-            int(data[0]) - 1,
-            int(data[1]),
-            'car',
-            None,
-            float(data[2]),
-            float(data[3]),
-            float(data[2]) + float(data[4]),
-            float(data[3]) + float(data[5]),
-            float(data[6])
+            frame=int(data[0])-1,
+            id=int(data[1]),
+            label='car',
+            xtl=float(data[2]),
+            ytl=float(data[3]),
+            xbr=float(data[2])+float(data[4]),
+            ybr=float(data[3])+float(data[5]),
+            score=float(data[6])
         ))
 
     return annotations
@@ -74,7 +74,7 @@ class AICityChallengeAnnotationReader:
 
     def __init__(self, path):
         self.annotations = parse_annotations(path)
-        self.classes = np.unique([detection.label for detection in self.annotations])
+        self.classes = np.unique([det.label for det in self.annotations])
 
     def get_annotations(self, classes=None, noise_params=None, group_by_frame=True, only_not_parked=False):
         """
@@ -86,24 +86,26 @@ class AICityChallengeAnnotationReader:
             classes = self.classes
 
         detections = []
-        for detection in self.annotations:
-            if detection.label in classes:  # filter by class
-                if only_not_parked and detection.parked:
+        for det in self.annotations:
+            if det.label in classes:  # filter by class
+                if only_not_parked and det.parked:
                     continue
+                d = deepcopy(det)
                 if noise_params:  # add noise
                     if np.random.random() > noise_params['drop']:
-                        detection.xtl += np.random.normal(noise_params['mean'], noise_params['std'], 1)[0]
-                        detection.ytl += np.random.normal(noise_params['mean'], noise_params['std'], 1)[0]
-                        detection.xbr += np.random.normal(noise_params['mean'], noise_params['std'], 1)[0]
-                        detection.ybr += np.random.normal(noise_params['mean'], noise_params['std'], 1)[0]
-                        detections.append(detection)
+                        box_noisy = d.bbox + np.random.normal(noise_params['mean'], noise_params['std'], 4)
+                        d.xtl = box_noisy[0]
+                        d.ytl = box_noisy[1]
+                        d.xbr = box_noisy[2]
+                        d.ybr = box_noisy[3]
+                        detections.append(d)
                 else:
-                    detections.append(detection)
+                    detections.append(d)
 
         if group_by_frame:
             grouped = defaultdict(list)
-            for detection in detections:
-                grouped[detection.frame].append(detection)
+            for det in detections:
+                grouped[det.frame].append(det)
             detections = OrderedDict(sorted(grouped.items()))
 
         return detections
@@ -121,10 +123,10 @@ if __name__ == '__main__':
     frame = np.random.randint(0, len(gt))
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
     ret, img = cap.read()
-    for box in gt[frame]:
-        cv2.rectangle(img, (int(box[1]), int(box[2])), (int(box[3]), int(box[4])), (0, 255, 0), 2)
-    for box in det[frame]:
-        cv2.rectangle(img, (int(box[1]), int(box[2])), (int(box[3]), int(box[4])), (0, 0, 255), 2)
+    for d in gt[frame]:
+        cv2.rectangle(img, (int(d.xtl), int(d.ytl)), (int(d.xbr), int(d.ybr)), (0, 255, 0), 2)
+    for d in det[frame]:
+        cv2.rectangle(img, (int(d.xtl), int(d.ytl)), (int(d.xbr), int(d.ybr)), (0, 0, 255), 2)
     cv2.imshow('image', img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
