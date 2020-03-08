@@ -2,18 +2,19 @@ import numpy as np
 import cv2
 from tqdm import trange
 
-from src.utils.color import convert_from_bgr, num_channels
+from src.utils.color import convert_from_bgr
 
 
 class SingleGaussianBackgroundModel:
 
-    def __init__(self, video_path, color_space='gray', channel_selector=lambda img: img):
+    def __init__(self, video_path, color_space='gray', channels=[True,True,True]):
         self.cap = cv2.VideoCapture(video_path)
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.length = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         self.color_space = color_space
-        self.channel_selector = channel_selector
+        self.channels = np.array(channels)
+
 
     def fit(self, start=0, length=None):
         if length is None:
@@ -22,14 +23,14 @@ class SingleGaussianBackgroundModel:
 
         # Welford's online variance algorithm
         # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
-        channels = num_channels(self.color_space, self.channel_selector)
+        num_channels = 1 if self.color_space == 'gray' else np.count_nonzero(self.channels == True)
         count = 0
-        mean = np.zeros((self.height, self.width, channels))
-        M2 = np.zeros((self.height, self.width, channels))
+        mean = np.zeros((self.height, self.width, num_channels))
+        M2 = np.zeros((self.height, self.width, num_channels))
 
         for _ in trange(length, desc='modelling background'):
             ret, img = self.cap.read()
-            img = convert_from_bgr(img, self.color_space, self.channel_selector)
+            img = self._convert_from_bgr_with_channels(img)
             count += 1
             delta = img - mean
             mean += delta / count
@@ -42,7 +43,7 @@ class SingleGaussianBackgroundModel:
     def evaluate(self, frame, alpha=2.5, rho=0.01, only_update_bg=True):
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
         ret, img_bgr = self.cap.read()
-        img = convert_from_bgr(img_bgr, self.color_space, self.channel_selector)
+        img = self._convert_from_bgr_with_channels(img_bgr)
 
         # segment foreground
         fg = np.bitwise_and.reduce(np.abs(img - self.mean) >= alpha * (self.std + 2), axis=2)
@@ -58,6 +59,10 @@ class SingleGaussianBackgroundModel:
                 self.std = np.sqrt(rho * np.power(img - self.mean, 2) + (1-rho) * np.power(self.std, 2))
 
         return img_bgr, (fg * 255).astype(np.uint8)
+
+    def _convert_from_bgr_with_channels(self, img):
+        image = convert_from_bgr(img, self.color_space)
+        return image[..., np.newaxis] if self.color_space == 'gray' else image[:, :, np.array(self.channels)]
 
 def get_bg_substractor(method):
     if method == 'MOG':
