@@ -1,4 +1,3 @@
-import os
 import cv2
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -62,7 +61,6 @@ def task3():
     '''
     Comparison with the state of the art
     '''
-
     method='MOG2'
     history=10
 
@@ -93,8 +91,48 @@ def task3():
             break
 
 def task4():
-    #TODO Color sequences
+    shape = (480, 270)
+    color_space = 'yuv'
+
+    # Select which channels to use
+    # all --> lambda img: img
+    # only two --> lambda img: img[:,:,1:3]
+    reshape_channels = lambda img: img[:, :, 1:3]
+    alpha = 2
+
+    reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
+    gt = reader.get_annotations(classes=['car'], only_not_parked=True)
+
+    bg_model = GaussianModelling(video_path='data/AICity_data/train/S03/c010/vdo.avi', color_space=color_space, reshape_channels=reshape_channels)
+    bg_model.fit(start=0, length=int(VIDEO_LENGTH * 0.25))
+
+    y_true = []
+    y_pred = []
+    for frame_id in trange(int(VIDEO_LENGTH * 0.25), VIDEO_LENGTH, desc='obtaining foreground and detecting objects'):
+        segmentation, frame = bg_model.evaluate(frame=frame_id, alpha=alpha)
+
+        segmentation_denoised = denoise(segmentation)
+        segmentation_filled = fill_holes(segmentation_denoised)
+
+        y_pred.append(bounding_boxes(segmentation_filled, frame=frame_id, min_area=200))
+        if frame_id in gt.keys():
+            y_true.append(gt[frame_id])
+        else:
+            y_true.append([])
+
+
+        for i in range(frame.shape[-1]):
+            cv2.imshow(f'Frame_{i}', cv2.resize(frame[:,:,i], shape))
+        cv2.imshow('Segmentation', cv2.resize(segmentation, shape))
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    ap = mean_average_precision(y_true, y_pred, classes=['car'])
+    print(f'AP: {ap:.4f}')
+
+
     return
 
 if __name__ == '__main__':
-    task3()
+    task4()
