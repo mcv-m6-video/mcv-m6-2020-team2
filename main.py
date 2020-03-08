@@ -27,7 +27,7 @@ if args.week == 1:
         raise ValueError(f"Bad input task {args.task}. Options are [1,2,3,4]")
 elif args.week == 2:
     if args.task == 1:
-        task1(path_plots, visualize=True)
+        task1(path_plots)
     elif args.task == 3:
         task3(path_plots)
     else:
