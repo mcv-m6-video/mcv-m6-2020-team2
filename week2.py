@@ -26,11 +26,11 @@ def task1(model_frac=0.25, min_area=500, debug=0):
     start_frame = int(video_length * model_frac)
     end_frame = video_length
 
-    for alpha in [1, 1.5, 2, 2.5, 3, 3.5, 4]:
+    for alpha in [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]:
         y_true = []
         y_pred = []
         for frame in trange(start_frame, end_frame, desc='evaluating frames'):
-            _, mask = bg_model.evaluate(frame=frame, rho=0)
+            _, mask = bg_model.evaluate(frame=frame, alpha=alpha, rho=0)
             mask = mask & roi
             if debug >= 2:
                 plt.imshow(mask); plt.show()
@@ -156,6 +156,6 @@ def task4():
 
 
 if __name__ == '__main__':
-    task1(debug=1)
+    task1(debug=0)
     #task3()
     #task4()
