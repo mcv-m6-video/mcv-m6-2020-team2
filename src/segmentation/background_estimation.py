@@ -7,14 +7,13 @@ from src.utils.color import convert_from_bgr, num_channels
 
 class SingleGaussianBackgroundModel:
 
-    def __init__(self, video_path, color_space='gray', reshape_channels=lambda img: img):
+    def __init__(self, video_path, color_space='gray', channel_selector=lambda img: img):
         self.cap = cv2.VideoCapture(video_path)
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.length = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         self.color_space = color_space
-        self.reshape_channels = reshape_channels
-        self.channels = num_channels(self.color_space, self.reshape_channels)
+        self.channel_selector = channel_selector
 
     def fit(self, start=0, length=None):
         if length is None:
@@ -23,13 +22,14 @@ class SingleGaussianBackgroundModel:
 
         # Welford's online variance algorithm
         # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+        channels = num_channels(self.color_space, self.channel_selector)
         count = 0
-        mean = np.zeros((self.height, self.width, self.channels))
-        M2 = np.zeros((self.height, self.width, self.channels))
+        mean = np.zeros((self.height, self.width, channels))
+        M2 = np.zeros((self.height, self.width, channels))
 
         for _ in trange(length, desc='modelling background'):
             ret, img = self.cap.read()
-            img = convert_from_bgr(img, self.color_space, self.reshape_channels)
+            img = convert_from_bgr(img, self.color_space, self.channel_selector)
             count += 1
             delta = img - mean
             mean += delta / count
@@ -42,7 +42,7 @@ class SingleGaussianBackgroundModel:
     def evaluate(self, frame, alpha=2.5, rho=0.01, only_update_bg=True):
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
         ret, img_bgr = self.cap.read()
-        img = convert_from_bgr(img_bgr, self.color_space, self.reshape_channels)
+        img = convert_from_bgr(img_bgr, self.color_space, self.channel_selector)
 
         # segment foreground
         fg = np.bitwise_and.reduce(np.abs(img - self.mean) >= alpha * (self.std + 2), axis=2)

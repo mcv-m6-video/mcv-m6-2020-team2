@@ -133,14 +133,14 @@ def task4():
     # Select which channels to use
     # all --> lambda img: img
     # only two --> lambda img: img[:,:,1:3]
-    reshape_channels = lambda img: img[:, :, 0:2]
+    channel_selector = lambda img: img[:, :, 0:2]
     alpha = 2
 
     reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
     gt = reader.get_annotations(classes=['car'], only_not_parked=True)
 
     bg_model = SingleGaussianBackgroundModel(video_path='data/AICity_data/train/S03/c010/vdo.avi',
-                                             color_space=color_space, reshape_channels=reshape_channels)
+                                             color_space=color_space, channel_selector=channel_selector)
     video_length = bg_model.length
     bg_model.fit(start=0, length=int(video_length * 0.25))
 
