@@ -46,12 +46,13 @@ class SingleGaussianBackgroundModel:
         bg = ~fg
 
         # update background model
-        if only_update_bg:
-            self.mean[bg, :] = rho * img[bg, :] + (1-rho) * self.mean[bg, :]
-            self.std[bg, :] = np.sqrt(rho * np.power(img[bg, :] - self.mean[bg, :], 2) + (1-rho) * np.power(self.std[bg, :], 2))
-        else:
-            self.mean = rho * img + (1-rho) * self.mean
-            self.std = np.sqrt(rho * np.power(img - self.mean, 2) + (1-rho) * np.power(self.std, 2))
+        if rho > 0:
+            if only_update_bg:
+                self.mean[bg, :] = rho * img[bg, :] + (1-rho) * self.mean[bg, :]
+                self.std[bg, :] = np.sqrt(rho * np.power(img[bg, :] - self.mean[bg, :], 2) + (1-rho) * np.power(self.std[bg, :], 2))
+            else:
+                self.mean = rho * img + (1-rho) * self.mean
+                self.std = np.sqrt(rho * np.power(img - self.mean, 2) + (1-rho) * np.power(self.std, 2))
 
         return img, (fg * 255).astype(np.uint8)
 
