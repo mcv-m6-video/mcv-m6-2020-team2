@@ -1,19 +1,19 @@
-from functools import reduce
 import numpy as np
 import cv2
 from tqdm import trange
-from src.utils.color_conversion import convert_color
+
+from src.utils.color import convert_bgr, num_channels
 
 
-class GaussianModelling:
+class SingleGaussianBackgroundModel:
 
-    def __init__(self, video_path, color_space='gray', reshape_channels=lambda img: img):
+    def __init__(self, video_path, color_space='gray'):
         self.cap = cv2.VideoCapture(video_path)
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.length = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         self.color_space = color_space
-        self.reshape_channels = reshape_channels
+        self.channels = num_channels(self.color_space)
 
     def fit(self, start=0, length=None):
         if length is None:
@@ -22,53 +22,48 @@ class GaussianModelling:
 
         # Welford's online variance algorithm
         # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
-
-        ret, img = self.cap.read()
-        img =  convert_color(img, self.color_space, self.reshape_channels)
-        shape = img.shape
-        count = np.ones(shape)
-        mean = img / count
-        M2 = np.zeros(shape)
-
+        count = 0
+        mean = np.zeros((self.height, self.width, self.channels))
+        M2 = np.zeros((self.height, self.width, self.channels))
         for _ in trange(length, desc='modelling background'):
             ret, img = self.cap.read()
-            img = convert_color(img, self.color_space, self.reshape_channels)
-
+            img = convert_bgr(img, self.color_space)
             count += 1
             delta = img - mean
             mean += delta / count
             delta2 = img - mean
             M2 += delta * delta2
-
         self.mean = mean
         self.std = np.sqrt(M2 / count)
 
-    def evaluate(self, frame, alpha=10):
+    def evaluate(self, frame, alpha=2.5, rho=0.01, only_update_bg=True):
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-        ret, img_bgr = self.cap.read()
-        img = convert_color(img_bgr, self.color_space, self.reshape_channels)
+        ret, img = self.cap.read()
+        img = convert_bgr(img, self.color_space)
 
-        th = alpha * (self.std + 2)
+        # segment foreground
+        fg = np.bitwise_and.reduce(np.abs(img - self.mean) >= alpha * (self.std + 2), axis=2)
+        bg = ~fg
 
-        a = [[img[:,:,i], self.mean[:,:,i], th[:,:,i]] for i in range(img.shape[-1])]
-        m = list(map(lambda x: np.abs(x[0] - x[1]) >= x[2], a))
-        mask = np.array(reduce(lambda a, b: np.bitwise_and(a, b), m))
+        # update background model
+        if only_update_bg:
+            self.mean[bg, :] = rho * img[bg, :] + (1-rho) * self.mean[bg, :]
+            self.std[bg, :] = np.sqrt(rho * np.power(img[bg, :] - self.mean[bg, :], 2) + (1-rho) * np.power(self.std[bg, :], 2))
+        else:
+            self.mean = rho * img + (1-rho) * self.mean
+            self.std = np.sqrt(rho * np.power(img - self.mean, 2) + (1-rho) * np.power(self.std, 2))
 
-        return (mask * 255).astype(np.uint8), img
-
+        return img, (fg * 255).astype(np.uint8)
 
 
 if __name__ == '__main__':
-    bg_model = GaussianModelling(video_path='../../data/AICity_data/train/S03/c010/vdo.avi', color_space='hsv')
+    bg_model = SingleGaussianBackgroundModel(video_path='../../data/AICity_data/train/S03/c010/vdo.avi')
     bg_model.fit(start=0, length=500)
 
-    for frame_id in range(550, 650):
-        mask, frame = bg_model.evaluate(frame=frame_id, alpha=10)
+    for frame in range(550, 650):
+        img, mask = bg_model.evaluate(frame=frame)
 
-        cv2.imshow('Frame', cv2.resize(frame, (480, 270)))
-        cv2.imshow('Segmentation', cv2.resize(mask, (480, 270)))
-
+        cv2.imshow('frame', img)
+        cv2.imshow('foreground', mask)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-
-

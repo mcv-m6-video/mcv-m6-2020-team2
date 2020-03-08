@@ -1,75 +1,63 @@
-import os
-
 import cv2
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from tqdm import trange
+import matplotlib.pyplot as plt
 
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
+from src.segmentation.background_estimation import SingleGaussianBackgroundModel
+from src.utils.detection import Detection
 from src.evaluation.average_precision import mean_average_precision
-from src.segmentation.background_estimation import GaussianModelling
 from src.utils.processing import denoise, fill_holes, bounding_boxes
 
 
-VIDEO_LENGTH = 2141
-
-def task1(save_path=None):
+def task1(model_frac=0.25, min_area=500, debug=0):
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
     gt = reader.get_annotations(classes=['car'], only_not_parked=True)
 
-    bg_model = GaussianModelling(video_path='data/AICity_data/train/S03/c010/vdo.avi')
-    bg_model.fit(start=0, length=int(VIDEO_LENGTH*0.25))
+    bg_model = SingleGaussianBackgroundModel(video_path='data/AICity_data/train/S03/c010/vdo.avi')
+    video_length = bg_model.length
+    bg_model.fit(start=0, length=int(video_length * model_frac))
 
-    aps = []
-    alphas = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
-    for alpha in alphas:
-        print('\nalpha =', alpha)
-        y_true = []
-        y_pred = []
-        for frame in trange(int(VIDEO_LENGTH*0.25), VIDEO_LENGTH, desc='obtaining foreground and detecting objects'):
-            segmentation, _ = bg_model.evaluate(frame=frame, alpha=alpha)
-            segmentation = fill_holes(segmentation)
-            segmentation = denoise(segmentation)
-            to_show = segmentation.copy()
+    roi = cv2.imread('data/AICity_data/train/S03/c010/roi.jpg', cv2.IMREAD_GRAYSCALE)
 
-            y_pred.append(bounding_boxes(segmentation, frame=frame, min_height=100, max_height=600, min_width=120, max_width=800))
-            if frame in gt.keys():
-                y_true.append(gt[frame])
-            else:
-                y_true.append([])
+    start_frame = int(video_length * model_frac)
+    end_frame = video_length
+    y_true = []
+    y_pred = []
+    for frame in trange(start_frame, end_frame, desc='evaluating frames'):
+        _, mask = bg_model.evaluate(frame=frame, rho=0)
+        mask = mask & roi
+        if debug >= 2:
+            plt.imshow(mask); plt.show()
 
-            ## PLOTS FOR TESTING
-            # fig,ax = plt.subplots()
-            # ax.imshow(to_show)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
+        if debug >= 2:
+            plt.imshow(mask); plt.show()
 
-            # for item in y_pred[-1]:
-            #     rect = patches.Rectangle((item.xtl,item.ytl),item.xbr-item.xtl,item.ybr-item.ytl,fill=False,linewidth=1,edgecolor='r')
-            #     ax.add_patch(rect)
-            # for item in y_true[-1]:
-            #     rect = patches.Rectangle((item.xtl,item.ytl),item.xbr-item.xtl,item.ybr-item.ytl,fill=False,linewidth=1,edgecolor='g')
-            #     ax.add_patch(rect)
+        contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        detections = []
+        for c in contours:
+            if cv2.contourArea(c) < min_area:
+                continue
+            x, y, w, h = cv2.boundingRect(c)
+            detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
+        annotations = gt.get(frame, [])
 
-            # ax.set_axis_off()
-            # plt.tight_layout()
-            # plt.show()
-            # plt.waitforbuttonpress()
-            # plt.cla()
-            # plt.close()
+        if debug >= 1:
+            img = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+            for det in detections:
+                cv2.rectangle(img, (det.xtl, det.ytl), (det.xbr, det.ybr), (0, 255, 0), 2)
+            for det in annotations:
+                cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
+            cv2.imshow('frame', img)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
-        ap = mean_average_precision(y_true, y_pred, classes=['car'])
-        print(f'AP: {ap:.4f}')
+        y_pred.append(detections)
+        y_true.append(annotations)
 
-        aps.append(ap)
+    ap = mean_average_precision(y_true, y_pred, classes=['car'])
+    print(f'AP: {ap:.4f}')
 
-    plt.plot(alphas, aps)
-    plt.xticks(alphas)
-    plt.xlabel('alpha')
-    plt.ylabel('AP')
-    plt.show()
-    if save_path is not None:
-        plt.savefig(os.path.join(save_path, 'ap_alpha.png'))
-
-    return
 
 def task2():
     # TODO: Adaptive modeling
@@ -79,8 +67,8 @@ def task2():
 def task3():
     """
     Comparison with the state of the art
-
     """
+
     method = 'MOG2'
     history = 10
 
@@ -125,24 +113,26 @@ def task4():
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
     gt = reader.get_annotations(classes=['car'], only_not_parked=True)
 
-    bg_model = GaussianModelling(video_path='data/AICity_data/train/S03/c010/vdo.avi', color_space=color_space, reshape_channels=reshape_channels)
-    bg_model.fit(start=0, length=int(VIDEO_LENGTH * 0.25))
+    bg_model = SingleGaussianBackgroundModel(video_path='data/AICity_data/train/S03/c010/vdo.avi', color_space=color_space)
+    video_length = bg_model.length
+    bg_model.fit(start=0, length=int(video_length * 0.25))
 
     y_true = []
     y_pred = []
-    for frame in trange(int(VIDEO_LENGTH * 0.25), VIDEO_LENGTH, desc='obtaining foreground and detecting objects'):
+    for frame in trange(int(video_length * 0.25), video_length, desc='obtaining foreground and detecting objects'):
         segmentation, frame_img = bg_model.evaluate(frame=frame, alpha=alpha)
         segmentation_denoised = denoise(segmentation)
         segmentation_filled = fill_holes(segmentation_denoised)
 
-        y_pred.append(bounding_boxes(segmentation, frame=frame, min_height=100, max_height=600, min_width=120, max_width=800))
+        y_pred.append(
+            bounding_boxes(segmentation, frame=frame, min_height=100, max_height=600, min_width=120, max_width=800))
         if frame in gt.keys():
             y_true.append(gt[frame])
         else:
             y_true.append([])
 
         for i in range(frame_img.shape[-1]):
-            cv2.imshow(f'Frame_{i}', cv2.resize(frame_img[:,:,i], shape))
+            cv2.imshow(f'Frame_{i}', cv2.resize(frame_img[:, :, i], shape))
         cv2.imshow('Segmentation', cv2.resize(segmentation_filled, shape))
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -152,10 +142,7 @@ def task4():
     print(f'AP: {ap:.4f}')
 
 
-
-
 if __name__ == '__main__':
-    #task1()
+    task1(debug=1)
     #task3()
-    task4()
-
+    #task4()
