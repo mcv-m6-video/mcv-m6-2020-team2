@@ -2,18 +2,19 @@ import numpy as np
 import cv2
 from tqdm import trange
 
-from src.utils.color import convert_bgr, num_channels
+from src.utils.color import convert_from_bgr, num_channels
 
 
 class SingleGaussianBackgroundModel:
 
-    def __init__(self, video_path, color_space='gray'):
+    def __init__(self, video_path, color_space='gray', reshape_channels=lambda img: img):
         self.cap = cv2.VideoCapture(video_path)
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.length = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         self.color_space = color_space
-        self.channels = num_channels(self.color_space)
+        self.reshape_channels = reshape_channels
+        self.channels = num_channels(self.color_space, self.reshape_channels)
 
     def fit(self, start=0, length=None):
         if length is None:
@@ -25,21 +26,23 @@ class SingleGaussianBackgroundModel:
         count = 0
         mean = np.zeros((self.height, self.width, self.channels))
         M2 = np.zeros((self.height, self.width, self.channels))
+
         for _ in trange(length, desc='modelling background'):
             ret, img = self.cap.read()
-            img = convert_bgr(img, self.color_space)
+            img = convert_from_bgr(img, self.color_space, self.reshape_channels)
             count += 1
             delta = img - mean
             mean += delta / count
             delta2 = img - mean
             M2 += delta * delta2
+
         self.mean = mean
         self.std = np.sqrt(M2 / count)
 
     def evaluate(self, frame, alpha=2.5, rho=0.01, only_update_bg=True):
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-        ret, img = self.cap.read()
-        img = convert_bgr(img, self.color_space)
+        ret, img_bgr = self.cap.read()
+        img = convert_from_bgr(img_bgr, self.color_space, self.reshape_channels)
 
         # segment foreground
         fg = np.bitwise_and.reduce(np.abs(img - self.mean) >= alpha * (self.std + 2), axis=2)
@@ -54,7 +57,7 @@ class SingleGaussianBackgroundModel:
                 self.mean = rho * img + (1-rho) * self.mean
                 self.std = np.sqrt(rho * np.power(img - self.mean, 2) + (1-rho) * np.power(self.std, 2))
 
-        return img, (fg * 255).astype(np.uint8)
+        return img_bgr, (fg * 255).astype(np.uint8)
 
 def get_bg_substractor(method):
     if method == 'MOG':

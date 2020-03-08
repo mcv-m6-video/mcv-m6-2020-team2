@@ -1,7 +1,7 @@
 import cv2
+import numpy as np
 
-
-def convert_bgr(image, color_space):
+def convert_from_bgr(image, color_space, img_reshape):
     color_space = color_space.lower()
 
     if color_space == 'gray':
@@ -19,15 +19,14 @@ def convert_bgr(image, color_space):
     else:
         raise ValueError(f'Unknown color space: {color_space}')
 
-    return cv2.cvtColor(image, color).reshape(image.shape[0], image.shape[1], num_channels(color_space))
+    img = cv2.cvtColor(image, color)
+    img = img_reshape(img)
+
+    if len(img.shape) == 2:
+        img = img[..., np.newaxis]
+
+    return img
 
 
-def num_channels(color_space):
-    color_space = color_space.lower()
-
-    if color_space == 'gray':
-        return 1
-    elif color_space in ['hsv', 'lab', 'yuv', 'rgb', 'bgr']:
-        return 3
-    else:
-        raise ValueError(f'Unknown color space: {color_space}')
+def num_channels(color_space, reshape_channels):
+    return convert_from_bgr(np.zeros((1, 1, 3), np.uint8), color_space, reshape_channels).shape[2]

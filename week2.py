@@ -139,27 +139,42 @@ def task4():
     reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
     gt = reader.get_annotations(classes=['car'], only_not_parked=True)
 
-    bg_model = SingleGaussianBackgroundModel(video_path='data/AICity_data/train/S03/c010/vdo.avi', color_space=color_space)
+    bg_model = SingleGaussianBackgroundModel(video_path='data/AICity_data/train/S03/c010/vdo.avi',
+                                             color_space=color_space, reshape_channels=reshape_channels)
     video_length = bg_model.length
     bg_model.fit(start=0, length=int(video_length * 0.25))
 
     y_true = []
     y_pred = []
+
     for frame in trange(int(video_length * 0.25), video_length, desc='obtaining foreground and detecting objects'):
-        segmentation, frame_img = bg_model.evaluate(frame=frame, alpha=alpha)
+        frame_img, segmentation = bg_model.evaluate(frame=frame, alpha=alpha)
         segmentation_denoised = denoise(segmentation)
         segmentation_filled = fill_holes(segmentation_denoised)
 
-        y_pred.append(
-            bounding_boxes(segmentation, frame=frame, min_height=100, max_height=600, min_width=120, max_width=800))
+        y_pred.append(bounding_boxes(segmentation, frame=frame, min_height=100, max_height=600, min_width=120, max_width=800))
         if frame in gt.keys():
             y_true.append(gt[frame])
         else:
             y_true.append([])
 
-        for i in range(frame_img.shape[-1]):
-            cv2.imshow(f'Frame_{i}', cv2.resize(frame_img[:, :, i], shape))
-        cv2.imshow('Segmentation', cv2.resize(segmentation_filled, shape))
+
+        for item_pred, item_true in zip(y_pred[-1], y_true[-1]):
+            cv2.rectangle(frame_img,
+                          (int(item_pred.xtl), int(item_pred.ytl)),
+                          (int(item_pred.xbr), int(item_pred.ybr)),
+                          (0, 0, 255), 4)
+            cv2.rectangle(frame_img,
+                          (int(item_true.xtl), int(item_true.ytl)),
+                          (int(item_true.xbr), int(item_true.ybr)),
+                          (0, 255, 0), 2)
+        cv2.imshow(f'BGR Image', cv2.resize(frame_img, shape))
+
+        # show the channels we are using
+        # for i in range(image_channels.shape[-1]):
+        #     cv2.imshow(f'Channels_{i}', cv2.resize(image_channels[:,:,i], shape))
+        cv2.imshow(f'Segmentation using {color_space}', cv2.resize(segmentation, shape))
+        cv2.imshow(f'Segmentation Morphed using {color_space}', cv2.resize(segmentation_filled, shape))
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -170,6 +185,6 @@ def task4():
 
 if __name__ == '__main__':
     #task1(debug=1)
-    methods = ["MOG", "MOG2", "LSBP", "GMG", "KNN", "GSOC", "CNT"]
-    task3(methods, debug=1)
-    #task4()
+    #methods = ["MOG", "MOG2", "LSBP", "GMG", "KNN", "GSOC", "CNT"]
+    #task3(methods, debug=1)
+    task4()
