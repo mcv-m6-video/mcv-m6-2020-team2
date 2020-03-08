@@ -10,6 +10,10 @@ from src.utils.processing import denoise, fill_holes, bounding_boxes
 
 
 def task1(model_frac=0.25, min_area=500, debug=0):
+    """
+    Gaussian modelling
+    """
+
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
     gt = reader.get_annotations(classes=['car'], only_not_parked=True)
 
@@ -21,52 +25,57 @@ def task1(model_frac=0.25, min_area=500, debug=0):
 
     start_frame = int(video_length * model_frac)
     end_frame = video_length
-    y_true = []
-    y_pred = []
-    for frame in trange(start_frame, end_frame, desc='evaluating frames'):
-        _, mask = bg_model.evaluate(frame=frame, rho=0)
-        mask = mask & roi
-        if debug >= 2:
-            plt.imshow(mask); plt.show()
 
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
-        if debug >= 2:
-            plt.imshow(mask); plt.show()
+    for alpha in [1, 1.5, 2, 2.5, 3, 3.5, 4]:
+        y_true = []
+        y_pred = []
+        for frame in trange(start_frame, end_frame, desc='evaluating frames'):
+            _, mask = bg_model.evaluate(frame=frame, rho=0)
+            mask = mask & roi
+            if debug >= 2:
+                plt.imshow(mask); plt.show()
 
-        contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        detections = []
-        for c in contours:
-            if cv2.contourArea(c) < min_area:
-                continue
-            x, y, w, h = cv2.boundingRect(c)
-            detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
-        annotations = gt.get(frame, [])
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
+            if debug >= 2:
+                plt.imshow(mask); plt.show()
 
-        if debug >= 1:
-            img = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-            for det in detections:
-                cv2.rectangle(img, (det.xtl, det.ytl), (det.xbr, det.ybr), (0, 255, 0), 2)
-            for det in annotations:
-                cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
-            cv2.imshow('frame', img)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            detections = []
+            for c in contours:
+                if cv2.contourArea(c) < min_area:
+                    continue
+                x, y, w, h = cv2.boundingRect(c)
+                detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
+            annotations = gt.get(frame, [])
 
-        y_pred.append(detections)
-        y_true.append(annotations)
+            if debug >= 1:
+                img = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+                for det in detections:
+                    cv2.rectangle(img, (det.xtl, det.ytl), (det.xbr, det.ybr), (0, 255, 0), 2)
+                for det in annotations:
+                    cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
+                cv2.imshow('result', img)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
 
-    ap = mean_average_precision(y_true, y_pred, classes=['car'])
-    print(f'AP: {ap:.4f}')
+            y_pred.append(detections)
+            y_true.append(annotations)
+
+        ap = mean_average_precision(y_true, y_pred, classes=['car'])
+        print(f'alpha: {alpha}, AP: {ap:.4f}')
 
 
 def task2():
-    # TODO: Adaptive modeling
-    return
+    """
+    Adaptive modelling
+    """
+
+    pass
 
 
 def task3():
     """
-    Comparison with the state of the art
+    Comparison with the state-of-the-art
     """
 
     method = 'MOG2'
@@ -101,6 +110,10 @@ def task3():
 
 
 def task4():
+    """
+    Color modelling
+    """
+
     shape = (480, 270)
     color_space = 'hsv'
 
