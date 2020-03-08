@@ -2,7 +2,8 @@ import numpy as np
 
 from src.evaluation.intersection_over_union import vec_intersecion_over_union
 
-def mean_average_precision(y_true, y_pred, classes=None, conf_scores=False):
+
+def mean_average_precision(y_true, y_pred, classes=None):
     """
     Mean Average Precision across classes.
 
@@ -13,35 +14,39 @@ def mean_average_precision(y_true, y_pred, classes=None, conf_scores=False):
     """
 
     if classes is None:
-        classes = np.unique([detection.label for boxlist in y_true for detection in boxlist])
+        classes = np.unique([det.label for boxlist in y_true for det in boxlist])
 
     aps = []
     for cls in classes:
         # filter by class
-        y_true_cls = [[detection for detection in boxlist if detection.label == cls] for boxlist in y_true]
-        y_pred_cls = [[detection for detection in boxlist if detection.label == cls] for boxlist in y_pred]
-        ap = average_precision(y_true_cls, y_pred_cls, conf_scores)
+        y_true_cls = [[det for det in boxlist if det.label == cls] for boxlist in y_true]
+        y_pred_cls = [[det for det in boxlist if det.label == cls] for boxlist in y_pred]
+        ap = average_precision(y_true_cls, y_pred_cls)
         aps.append(ap)
     map = np.mean(aps) if aps else 0
 
     return map
 
 
-def average_precision(y_true, y_pred, conf_scores):
+def average_precision(y_true, y_pred):
     """
     Average Precision with or without confidence scores.
 
     Args:
         y_true: [[Detection,...],...]
         y_pred: [[Detection,...],...]
-
     """
-    y_true = [[detection.get_bbox() for detection in y_true[i]] for i in range(len(y_true))] # flatten
-    y_pred = [[i] + detection.get_bbox() + [detection.confidence] for i in range(len(y_pred)) for detection in y_pred[i] ] # flatten
-    if conf_scores:
+
+    y_pred = [(i, det) for i in range(len(y_pred)) for det in y_pred[i]]  # flatten
+    if len(y_pred) == 0:
+        return 0
+    else:
+        with_scores = y_pred[0][1].score is not None
+
+    if with_scores:
         # sort by confidence
-        sorted_ind = np.argsort([-box[-1] for box in y_pred])
-        y_pred_sorted = [y_pred[i][:-1] for i in sorted_ind]
+        sorted_ind = np.argsort([-det[1].score for det in y_pred])
+        y_pred_sorted = [y_pred[i] for i in sorted_ind]
         ap = voc_ap(y_true, y_pred_sorted)
     else:
         # average metrics across n random orderings
@@ -49,7 +54,7 @@ def average_precision(y_true, y_pred, conf_scores):
         aps = []
         for _ in range(n):
             shuffled_ind = np.random.permutation(len(y_pred))
-            y_pred_shuffled = [y_pred[i][:-1] for i in shuffled_ind]
+            y_pred_shuffled = [y_pred[i] for i in shuffled_ind]
             ap = voc_ap(y_true, y_pred_shuffled)
             aps.append(ap)
         ap = np.mean(aps)
@@ -64,21 +69,21 @@ def voc_ap(y_true, y_pred, ovthresh=0.5):
     Average Precision as defined by PASCAL VOC (11-point method).
 
     Args:
-        y_true: [[[xtl,ytl,xbr,ybr],...],...]
-        y_pred: [[id,xtl,ytl,xbr,ybr],...]
+        y_true: [[Detection,...],...]
+        y_pred: [Detection,...]
         ovthresh: overlap threshold.
     """
 
     class_recs = []
     npos = 0
     for R in y_true:
-        bbox = np.array(R)
+        bbox = np.array([det.bbox for det in R])
         det = [False] * len(R)
         npos += len(R)
         class_recs.append({"bbox": bbox, "det": det})
 
-    image_ids = [box[0] for box in y_pred]
-    BB = np.array([box[1:] for box in y_pred]).reshape(-1, 4)
+    image_ids = [det[0] for det in y_pred]
+    BB = np.array([det[1].bbox for det in y_pred]).reshape(-1, 4)
 
     # go down dets and mark TPs and FPs
     nd = len(image_ids)

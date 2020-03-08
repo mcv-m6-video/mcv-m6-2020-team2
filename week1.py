@@ -23,12 +23,11 @@ def task1_1(save_path=None):
         noise_params = {'drop': drop, 'mean': 0, 'std': 0}
         gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params)
 
-        frames = sorted(list(set(gt) & set(gt_noisy)))
         y_true = []
         y_pred = []
-        for frame in frames:
-            y_true.append(gt[frame])
-            y_pred.append(gt_noisy[frame])
+        for frame in gt.keys():
+            y_true.append(gt.get(frame))
+            y_pred.append(gt_noisy.get(frame, []))
 
         map = mean_average_precision(y_true, y_pred)
         maps.append(map)
@@ -48,12 +47,11 @@ def task1_1(save_path=None):
         noise_params = {'drop': 0, 'mean': 0, 'std': std}
         gt_noisy = reader.get_annotations(classes=['car'], noise_params=noise_params)
 
-        frames = sorted(list(set(gt) & set(gt_noisy)))
         y_true = []
         y_pred = []
-        for frame in frames:
-            y_true.append(gt[frame])
-            y_pred.append(gt_noisy[frame])
+        for frame in gt.keys():
+            y_true.append(gt.get(frame))
+            y_pred.append(gt_noisy.get(frame, []))
 
         map = mean_average_precision(y_true, y_pred)
         maps.append(map)
@@ -75,14 +73,13 @@ def task1_2():
         reader = AICityChallengeAnnotationReader(path=f'data/AICity_data/train/S03/c010/det/det_{detector}.txt')
         det = reader.get_annotations(classes=['car'])
 
-        frames = sorted(list(set(gt) & set(det)))
         y_true = []
         y_pred = []
-        for frame in frames:
-            y_true.append(gt[frame])
-            y_pred.append(det[frame])
+        for frame in gt.keys():
+            y_true.append(gt.get(frame))
+            y_pred.append(det.get(frame, []))
 
-        map = mean_average_precision(y_true, y_pred, conf_scores=True)
+        map = mean_average_precision(y_true, y_pred)
         print(f'{detector} mAP: {map:.4f}')
 
 
@@ -140,5 +137,5 @@ def task3_4(save_path=None):
 if __name__ == '__main__':
     #task1_1()
     task1_2()
-    #task2(start=550, save_path='results/week1')
+    #task2(start=550)
     #task3_4()

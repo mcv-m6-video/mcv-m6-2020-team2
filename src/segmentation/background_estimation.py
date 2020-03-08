@@ -7,14 +7,13 @@ from src.utils.color_conversion import convert_color
 
 class GaussianModelling:
 
-    def __init__(self, video_path, color_space, reshape_channels=lambda img: img):
+    def __init__(self, video_path, color_space='gray', reshape_channels=lambda img: img):
         self.cap = cv2.VideoCapture(video_path)
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.length = self.cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        self.length = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         self.color_space = color_space
         self.reshape_channels = reshape_channels
-
 
     def fit(self, start=0, length=None):
         if length is None:
@@ -53,9 +52,10 @@ class GaussianModelling:
 
         a = [[img[:,:,i], self.mean[:,:,i], th[:,:,i]] for i in range(img.shape[-1])]
         m = list(map(lambda x: np.abs(x[0] - x[1]) >= x[2], a))
-        segmentation = np.array(reduce(lambda a, b: np.bitwise_and(a, b), m))
+        mask = np.array(reduce(lambda a, b: np.bitwise_and(a, b), m))
 
-        return (segmentation * 255).astype(np.uint8), img
+        return (mask * 255).astype(np.uint8), img
+
 
 
 if __name__ == '__main__':
@@ -63,10 +63,10 @@ if __name__ == '__main__':
     bg_model.fit(start=0, length=500)
 
     for frame_id in range(550, 650):
-        segmentation, frame = bg_model.evaluate(frame=frame_id, alpha=10)
+        mask, frame = bg_model.evaluate(frame=frame_id, alpha=10)
 
         cv2.imshow('Frame', cv2.resize(frame, (480, 270)))
-        cv2.imshow('Segmentation', cv2.resize(segmentation, (480, 270)))
+        cv2.imshow('Segmentation', cv2.resize(mask, (480, 270)))
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

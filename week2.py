@@ -1,3 +1,5 @@
+import os
+
 import cv2
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -11,58 +13,76 @@ from src.utils.processing import denoise, fill_holes, bounding_boxes
 
 VIDEO_LENGTH = 2141
 
-def task1(save_path=None, visualize=False):
+def task1(save_path=None):
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
     gt = reader.get_annotations(classes=['car'], only_not_parked=True)
 
     bg_model = GaussianModelling(video_path='data/AICity_data/train/S03/c010/vdo.avi')
     bg_model.fit(start=0, length=int(VIDEO_LENGTH*0.25))
 
-    y_true = []
-    y_pred = []
-    for frame in trange(int(VIDEO_LENGTH*0.25), VIDEO_LENGTH, desc='obtaining foreground and detecting objects'):
-        segmentation = bg_model.evaluate(frame=frame, alpha=4)
-        segmentation_denoised = denoise(segmentation)
-        segmentation_filled = fill_holes(segmentation_denoised)
+    aps = []
+    alphas = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
+    for alpha in alphas:
+        print('\nalpha =', alpha)
+        y_true = []
+        y_pred = []
+        for frame in trange(int(VIDEO_LENGTH*0.25), VIDEO_LENGTH, desc='obtaining foreground and detecting objects'):
+            segmentation, _ = bg_model.evaluate(frame=frame, alpha=alpha)
+            segmentation = fill_holes(segmentation)
+            segmentation = denoise(segmentation)
+            to_show = segmentation.copy()
 
-        y_pred.append(bounding_boxes(segmentation_filled, frame=frame, min_area=200))
-        if frame in gt.keys():
-            y_true.append(gt[frame])
-        else:
-            y_true.append([])
+            y_pred.append(bounding_boxes(segmentation, frame=frame, min_height=100, max_height=600, min_width=120, max_width=800))
+            if frame in gt.keys():
+                y_true.append(gt[frame])
+            else:
+                y_true.append([])
 
-    ap = mean_average_precision(y_true, y_pred, classes=['car'])
-    print(f'AP: {ap:.4f}')
+            ## PLOTS FOR TESTING
+            # fig,ax = plt.subplots()
+            # ax.imshow(to_show)
 
-    if visualize:
-        F = 550
+            # for item in y_pred[-1]:
+            #     rect = patches.Rectangle((item.xtl,item.ytl),item.xbr-item.xtl,item.ybr-item.ytl,fill=False,linewidth=1,edgecolor='r')
+            #     ax.add_patch(rect)
+            # for item in y_true[-1]:
+            #     rect = patches.Rectangle((item.xtl,item.ytl),item.xbr-item.xtl,item.ybr-item.ytl,fill=False,linewidth=1,edgecolor='g')
+            #     ax.add_patch(rect)
 
-        fig,ax = plt.subplots()
-        ax.imshow(segmentation_filled)
+            # ax.set_axis_off()
+            # plt.tight_layout()
+            # plt.show()
+            # plt.waitforbuttonpress()
+            # plt.cla()
+            # plt.close()
 
-        for item in y_pred[F-int(VIDEO_LENGTH*0.25)]:
-            rect = patches.Rectangle((item.xtl,item.ytl),item.xbr-item.xtl,item.ybr-item.ytl,fill=False,linewidth=1,edgecolor='r')
-            ax.add_patch(rect)
-        for item in y_true[F-int(VIDEO_LENGTH*0.25)]:
-            rect = patches.Rectangle((item.xtl,item.ytl),item.xbr-item.xtl,item.ybr-item.ytl,fill=False,linewidth=1,edgecolor='g')
-            ax.add_patch(rect)
+        ap = mean_average_precision(y_true, y_pred, classes=['car'])
+        print(f'AP: {ap:.4f}')
 
-        ax.set_axis_off()
-        plt.tight_layout()
-        plt.show()
+        aps.append(ap)
+
+    plt.plot(alphas, aps)
+    plt.xticks(alphas)
+    plt.xlabel('alpha')
+    plt.ylabel('AP')
+    plt.show()
+    if save_path is not None:
+        plt.savefig(os.path.join(save_path, 'ap_alpha.png'))
 
     return
 
 def task2():
-    #TODO Adaptive modeling
+    # TODO: Adaptive modeling
     return
 
+
 def task3():
-    '''
+    """
     Comparison with the state of the art
-    '''
-    method='MOG2'
-    history=10
+
+    """
+    method = 'MOG2'
+    history = 10
 
     if method == 'MOG2':
         backSub = cv2.createBackgroundSubtractorMOG2()
@@ -77,7 +97,8 @@ def task3():
     elif method == 'CNT':
         backSub = cv2.bgsegm.createBackgroundSubtractorCNT()
     else:
-        raise ValueError(f"Unknown background estimation method {method}. Options are [MOG2, LSBP, GMG, KNN, GSOC, CNT]")
+        raise ValueError(
+            f"Unknown background estimation method {method}. Options are [MOG2, LSBP, GMG, KNN, GSOC, CNT]")
 
     cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
     while cap.isOpened():
@@ -90,14 +111,15 @@ def task3():
         if cv2.waitKey(1) & 0xFF == 27:
             break
 
+
 def task4():
     shape = (480, 270)
-    color_space = 'yuv'
+    color_space = 'hsv'
 
     # Select which channels to use
     # all --> lambda img: img
     # only two --> lambda img: img[:,:,1:3]
-    reshape_channels = lambda img: img[:, :, 1:3]
+    reshape_channels = lambda img: img[:, :, 0:2]
     alpha = 2
 
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
@@ -108,22 +130,20 @@ def task4():
 
     y_true = []
     y_pred = []
-    for frame_id in trange(int(VIDEO_LENGTH * 0.25), VIDEO_LENGTH, desc='obtaining foreground and detecting objects'):
-        segmentation, frame = bg_model.evaluate(frame=frame_id, alpha=alpha)
-
+    for frame in trange(int(VIDEO_LENGTH * 0.25), VIDEO_LENGTH, desc='obtaining foreground and detecting objects'):
+        segmentation, frame_img = bg_model.evaluate(frame=frame, alpha=alpha)
         segmentation_denoised = denoise(segmentation)
         segmentation_filled = fill_holes(segmentation_denoised)
 
-        y_pred.append(bounding_boxes(segmentation_filled, frame=frame_id, min_area=200))
-        if frame_id in gt.keys():
-            y_true.append(gt[frame_id])
+        y_pred.append(bounding_boxes(segmentation, frame=frame, min_height=100, max_height=600, min_width=120, max_width=800))
+        if frame in gt.keys():
+            y_true.append(gt[frame])
         else:
             y_true.append([])
 
-
-        for i in range(frame.shape[-1]):
-            cv2.imshow(f'Frame_{i}', cv2.resize(frame[:,:,i], shape))
-        cv2.imshow('Segmentation', cv2.resize(segmentation, shape))
+        for i in range(frame_img.shape[-1]):
+            cv2.imshow(f'Frame_{i}', cv2.resize(frame_img[:,:,i], shape))
+        cv2.imshow('Segmentation', cv2.resize(segmentation_filled, shape))
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -132,7 +152,10 @@ def task4():
     print(f'AP: {ap:.4f}')
 
 
-    return
+
 
 if __name__ == '__main__':
+    #task1()
+    #task3()
     task4()
+
