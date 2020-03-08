@@ -55,6 +55,24 @@ class SingleGaussianBackgroundModel:
 
         return img, (fg * 255).astype(np.uint8)
 
+def get_bg_substractor(method):
+    if method == 'MOG':
+        backSub = cv2.bgsegm.createBackgroundSubtractorMOG()
+    elif method == 'MOG2':
+        backSub = cv2.createBackgroundSubtractorMOG2()
+    elif method == 'LSBP':
+        backSub = cv2.bgsegm.createBackgroundSubtractorLSBP()
+    elif method == 'GMG':
+        backSub = cv2.bgsegm.createBackgroundSubtractorGMG()
+    elif method == 'KNN':
+        backSub = cv2.createBackgroundSubtractor()
+    elif method == 'GSOC':
+        backSub = cv2.bgsegm.createBackgroundSubtractorGSOC()
+    elif method == 'CNT':
+        backSub = cv2.bgsegm.createBackgroundSubtractorCNT()
+    else:
+        raise ValueError(f"Unknown background estimation method {method}. Options are [MOG, MOG2, LSBP, GMG, KNN, GSOC, CNT]")
+    return backSub
 
 if __name__ == '__main__':
     bg_model = SingleGaussianBackgroundModel(video_path='../../data/AICity_data/train/S03/c010/vdo.avi')
