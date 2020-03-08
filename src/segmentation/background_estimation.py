@@ -9,7 +9,7 @@ class GaussianModelling:
         self.cap = cv2.VideoCapture(video_path)
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.length = self.cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        self.length = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     def fit(self, start=0, length=None):
         if length is None:
@@ -36,8 +36,8 @@ class GaussianModelling:
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
         ret, img = self.cap.read()
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        segmentation = np.abs(img - self.mean) >= alpha * (self.std + 2)
-        return (segmentation * 255).astype(np.uint8)
+        mask = np.abs(img - self.mean) >= alpha * (self.std + 2)
+        return (mask * 255).astype(np.uint8)
 
 
 if __name__ == '__main__':
@@ -45,8 +45,8 @@ if __name__ == '__main__':
     bg_model.fit(start=0, length=500)
 
     for frame in range(550, 650):
-        segmentation = bg_model.evaluate(frame=frame, alpha=10)
+        mask = bg_model.evaluate(frame=frame, alpha=10)
 
-        cv2.imshow('frame', segmentation)
+        cv2.imshow('frame', mask)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
