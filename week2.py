@@ -15,7 +15,7 @@ def task1(model_frac=0.25, min_area=500, debug=0):
     Gaussian modelling
     """
 
-    reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
+    reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
     gt = reader.get_annotations(classes=['car'], only_not_parked=True)
 
     bg_model = SingleGaussianBackgroundModel(video_path='data/AICity_data/train/S03/c010/vdo.avi')
@@ -136,7 +136,7 @@ def task4():
     reshape_channels = lambda img: img[:, :, 0:2]
     alpha = 2
 
-    reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
+    reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
     gt = reader.get_annotations(classes=['car'], only_not_parked=True)
 
     bg_model = SingleGaussianBackgroundModel(video_path='data/AICity_data/train/S03/c010/vdo.avi', color_space=color_space)
