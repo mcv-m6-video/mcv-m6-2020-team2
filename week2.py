@@ -128,7 +128,7 @@ def task4():
     """
 
     shape = (480, 270)
-    color_space = 'hsv'
+    color_space = 'yuv'
 
     # Select which channels to use
     # all --> lambda img: img
