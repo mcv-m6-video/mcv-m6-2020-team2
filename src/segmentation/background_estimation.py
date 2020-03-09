@@ -7,13 +7,18 @@ from src.utils.color import convert_from_bgr, default_num_channels
 
 class SingleGaussianBackgroundModel:
 
-    def __init__(self, video_path, color_space='gray', channels=None):
+    def __init__(self, video_path, color_space='gray', channels=None, resize=None):
         self.cap = cv2.VideoCapture(video_path)
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.length = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         self.color_space = color_space
         self.channels = channels
+        self.resize = resize
+
+        if self.resize is not None:
+            self.height = int(self.height * self.resize)
+            self.width = int(self.width * self.resize)
 
     def fit(self, start=0, length=None):
         if length is None:
@@ -27,8 +32,7 @@ class SingleGaussianBackgroundModel:
         mean = np.zeros((self.height, self.width, num_channels))
         M2 = np.zeros((self.height, self.width, num_channels))
         for _ in trange(length, desc='modelling background'):
-            ret, img = self.cap.read()
-            img = convert_from_bgr(img, self.color_space, self.channels)
+            img = self._read_and_preprocess()
             count += 1
             delta = img - mean
             mean += delta / count
@@ -39,8 +43,7 @@ class SingleGaussianBackgroundModel:
 
     def evaluate(self, frame, alpha=2.5, rho=0.01, only_update_bg=True):
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-        ret, img_bgr = self.cap.read()
-        img = convert_from_bgr(img_bgr, self.color_space, self.channels)
+        img = self._read_and_preprocess()
 
         # segment foreground
         fg = np.bitwise_and.reduce(np.abs(img - self.mean) >= alpha * (self.std + 2), axis=2)
@@ -55,7 +58,14 @@ class SingleGaussianBackgroundModel:
                 self.mean = rho * img + (1-rho) * self.mean
                 self.std = np.sqrt(rho * np.power(img - self.mean, 2) + (1-rho) * np.power(self.std, 2))
 
-        return img_bgr, (fg * 255).astype(np.uint8)
+        return img, (fg * 255).astype(np.uint8)
+
+    def _read_and_preprocess(self):
+        ret, img = self.cap.read()
+        if self.resize is not None:
+            img = cv2.resize(img, None, fx=self.resize, fy=self.resize, interpolation=cv2.INTER_CUBIC)
+        img = convert_from_bgr(img, self.color_space, self.channels)
+        return img
 
 
 def get_bg_substractor(method):
@@ -80,7 +90,7 @@ def get_bg_substractor(method):
 
 if __name__ == '__main__':
     bg_model = SingleGaussianBackgroundModel(video_path='../../data/AICity_data/train/S03/c010/vdo.avi',
-                                             color_space='hsv', channels=(0, 1))
+                                             color_space='hsv', channels=(0, 1), resize=0.5)
     bg_model.fit(start=0, length=500)
 
     for frame in range(550, 650):

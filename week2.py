@@ -14,7 +14,8 @@ from src.evaluation.average_precision import mean_average_precision
 from src.utils.processing import denoise, fill_holes, bounding_boxes
 
 
-def task1(path_plots, visualize=False, model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600, debug=0):
+def task1(path_plots, visualize=False, model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600,
+          debug=0):
     """
     Gaussian modelling
     """
@@ -33,7 +34,7 @@ def task1(path_plots, visualize=False, model_frac=0.25, min_width=120, max_width
 
     for alpha in [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]:
         if visualize:
-            writer = imageio.get_writer(os.path.join(path_plots, 'task1_alpha'+str(alpha)+'.gif'), fps=25)
+            writer = imageio.get_writer(os.path.join(path_plots, 'task1_alpha' + str(alpha) + '.gif'), fps=25)
 
         y_true = []
         y_pred = []
@@ -41,11 +42,13 @@ def task1(path_plots, visualize=False, model_frac=0.25, min_width=120, max_width
             _, mask = bg_model.evaluate(frame=frame, alpha=alpha, rho=0)
             mask = mask & roi
             if debug >= 2:
-                plt.imshow(mask); plt.show()
+                plt.imshow(mask);
+                plt.show()
 
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
             if debug >= 2:
-                plt.imshow(mask); plt.show()
+                plt.imshow(mask);
+                plt.show()
 
             contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             detections = []
@@ -61,10 +64,10 @@ def task1(path_plots, visualize=False, model_frac=0.25, min_width=120, max_width
                     cv2.rectangle(img, (det.xtl, det.ytl), (det.xbr, det.ybr), (0, 255, 0), 2)
                 for det in annotations:
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
-                
+
                 if visualize:
                     writer.append_data(img)
-                
+
                 if debug >= 1:
                     cv2.imshow('result', img)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -80,7 +83,8 @@ def task1(path_plots, visualize=False, model_frac=0.25, min_width=120, max_width
         print(f'alpha: {alpha}, AP: {ap:.4f}')
 
 
-def task2(path_plots, visualize=False, model_frac=0.25, search_type='random', min_width=120, max_width=800, min_height=100, max_height=600, debug=0):
+def task2(path_plots, visualize=False, model_frac=0.25, search_type='random', min_width=120, max_width=800,
+          min_height=100, max_height=600, debug=0):
     """
     Adaptive modelling
     """
@@ -111,7 +115,8 @@ def task2(path_plots, visualize=False, model_frac=0.25, search_type='random', mi
 
     for alpha, rho in combinations:
         if visualize:
-            writer = imageio.get_writer(os.path.join(path_plots, 'task2_alpha'+str(alpha)+'_rho_'+str(rho)+'.gif'), fps=25)
+            writer = imageio.get_writer(
+                os.path.join(path_plots, 'task2_alpha' + str(alpha) + '_rho_' + str(rho) + '.gif'), fps=25)
 
         y_true = []
         y_pred = []
@@ -119,11 +124,13 @@ def task2(path_plots, visualize=False, model_frac=0.25, search_type='random', mi
             _, mask = bg_model.evaluate(frame=frame, alpha=alpha, rho=rho)
             mask = mask & roi
             if debug >= 2:
-                plt.imshow(mask); plt.show()
+                plt.imshow(mask);
+                plt.show()
 
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
             if debug >= 2:
-                plt.imshow(mask); plt.show()
+                plt.imshow(mask);
+                plt.show()
 
             contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             detections = []
@@ -139,10 +146,10 @@ def task2(path_plots, visualize=False, model_frac=0.25, search_type='random', mi
                     cv2.rectangle(img, (det.xtl, det.ytl), (det.xbr, det.ybr), (0, 255, 0), 2)
                 for det in annotations:
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
-                
+
                 if visualize:
                     writer.append_data(img)
-                
+
                 if debug >= 1:
                     cv2.imshow('result', img)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -159,11 +166,11 @@ def task2(path_plots, visualize=False, model_frac=0.25, search_type='random', mi
 
 
 def task3(bg_subst_methods, model_frac=0.25, history=10, debug=0):
-    '''
+    """
     Comparison with the state of the art
-    '''
+    """
 
-    #Load ground truth
+    # Load ground truth
     reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
     gt = reader.get_annotations(classes=['car'], only_not_parked=True)
 
@@ -210,6 +217,7 @@ def task4():
     """
     Color modelling
     """
+
     alpha = 2
     shape = (480, 270)
     color_space = 'gray'
@@ -231,12 +239,12 @@ def task4():
         segmentation_denoised = denoise(segmentation)
         segmentation_filled = fill_holes(segmentation_denoised)
 
-        y_pred.append(bounding_boxes(segmentation, frame=frame, min_height=100, max_height=600, min_width=120, max_width=800))
+        y_pred.append(
+            bounding_boxes(segmentation, frame=frame, min_height=100, max_height=600, min_width=120, max_width=800))
         if frame in gt.keys():
             y_true.append(gt[frame])
         else:
             y_true.append([])
-
 
         for item_pred, item_true in zip(y_pred[-1], y_true[-1]):
             cv2.rectangle(frame_img,
@@ -263,7 +271,7 @@ def task4():
 
 
 if __name__ == '__main__':
-    #task1(debug=1)
-    #methods = ["MOG", "MOG2", "LSBP", "GMG", "KNN", "GSOC", "CNT"]
-    #task3(methods, debug=1)
+    # task1(debug=1)
+    # methods = ["MOG", "MOG2", "LSBP", "GMG", "KNN", "GSOC", "CNT"]
+    # task3(methods, debug=1)
     task4()
