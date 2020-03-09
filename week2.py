@@ -10,7 +10,7 @@ from src.evaluation.average_precision import mean_average_precision
 from src.utils.processing import denoise, fill_holes, bounding_boxes
 
 
-def task1(model_frac=0.25, min_area=500, debug=0):
+def task1(model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600, debug=0):
     """
     Gaussian modelling
     """
@@ -43,10 +43,9 @@ def task1(model_frac=0.25, min_area=500, debug=0):
             contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             detections = []
             for c in contours:
-                if cv2.contourArea(c) < min_area:
-                    continue
                 x, y, w, h = cv2.boundingRect(c)
-                detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
+                if min_width < w < max_width and min_height < h < max_height:
+                    detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
             annotations = gt.get(frame, [])
 
             if debug >= 1:
