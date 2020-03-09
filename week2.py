@@ -1,5 +1,4 @@
 import os
-from collections import defaultdict
 
 import numpy as np
 import cv2
@@ -83,7 +82,7 @@ def task1_2(adaptive, random_search, model_frac=0.25, min_width=120, max_width=8
         if save_path:
             writer.close()
 
-        ap = mean_average_precision(y_true, y_pred, classes=['car'])
+        ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
         print(f'alpha: {alpha:.1f}, rho: {rho:.3f}, AP: {ap:.4f}')
 
 
@@ -103,7 +102,7 @@ def task2(debug=0, save_path=None):
     task1_2(True, True, debug=debug, save_path=save_path)
 
 
-def task3(bg_subst_methods, model_frac=0.25, history=10, debug=0):
+def task3(bg_subst_methods, model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600, history=10, debug=0):
     """
     Comparison with the state of the art
     """
@@ -117,25 +116,31 @@ def task3(bg_subst_methods, model_frac=0.25, history=10, debug=0):
     start_frame = int(video_length * model_frac)
     end_frame = int(video_length)
 
-    y_pred = defaultdict(list)
-    y_true = defaultdict(list)
-    ap = defaultdict(list)
-
     for sota_method in bg_subst_methods:
         backSub = get_bg_substractor(sota_method)
+        y_pred = []
+        y_true = []
         for frame in trange(start_frame, end_frame, desc='evaluating frames'):
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
             retVal, img = cap.read()
 
             mask = backSub.apply(img, learningRate=1.0 / history)
             if debug >= 2:
-                cv2.imshow('Foreground', cv2.resize(mask, (960, 540)))
-                cv2.imshow('Original', cv2.resize(img, (960, 540)))
+                plt.imshow(mask); plt.show()
 
-            detections = bounding_boxes(mask, frame=frame, min_height=100, max_height=600, min_width=120, max_width=800)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
+            if debug >= 2:
+                plt.imshow(mask); plt.show()
+
+            m, contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            detections = []
+            for c in contours:
+                x, y, w, h = cv2.boundingRect(c)
+                if min_width < w < max_width and min_height < h < max_height:
+                    detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
             annotations = gt.get(frame, [])
-            y_pred[sota_method].append(detections)
-            y_true[sota_method].append(annotations)
+            y_pred.append(detections)
+            y_true.append(annotations)
 
             if debug >= 1:
                 for det in detections:
@@ -144,11 +149,8 @@ def task3(bg_subst_methods, model_frac=0.25, history=10, debug=0):
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
                 cv2.imshow('frame', img)
 
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-
-        ap[sota_method] = mean_average_precision(y_true[sota_method], y_pred[sota_method], classes=['car'])
-        print('Method:', sota_method, f'AP: {ap[sota_method]:.4f}')
+        ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
+        print('Method:', sota_method, f'AP: {ap:.4f}', f'Precision: {prec:.4f}', f'Recall: {rec:.4f}')
 
 
 def task4():
@@ -204,12 +206,12 @@ def task4():
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    ap = mean_average_precision(y_true, y_pred, classes=['car'])
+    ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
     print(f'AP: {ap:.4f}')
 
 
 if __name__ == '__main__':
     #task1(save_path='results/week2')
-    task2(save_path='results/week2')
-    #task3(["MOG", "MOG2", "LSBP", "GMG", "KNN", "GSOC", "CNT"], debug=1)
+    #task2(save_path='results/week2')
+    task3(["MOG", "MOG2", "LSBP", "GMG", "KNN", "GSOC", "CNT"], debug=0)
     #task4()

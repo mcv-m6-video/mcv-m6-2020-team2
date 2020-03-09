@@ -21,11 +21,13 @@ def mean_average_precision(y_true, y_pred, classes=None):
         # filter by class
         y_true_cls = [[det for det in boxlist if det.label == cls] for boxlist in y_true]
         y_pred_cls = [[det for det in boxlist if det.label == cls] for boxlist in y_pred]
-        ap = average_precision(y_true_cls, y_pred_cls)
+        ap, prec, rec = average_precision(y_true_cls, y_pred_cls)
         aps.append(ap)
     map = np.mean(aps) if aps else 0
+    prec = np.mean(prec) if aps else 0
+    rec = np.mean(rec) if aps else 0
 
-    return map
+    return map, prec, rec
 
 
 def average_precision(y_true, y_pred):
@@ -47,7 +49,7 @@ def average_precision(y_true, y_pred):
         # sort by confidence
         sorted_ind = np.argsort([-det[1].score for det in y_pred])
         y_pred_sorted = [y_pred[i] for i in sorted_ind]
-        ap = voc_ap(y_true, y_pred_sorted)
+        ap, prec, rec = voc_ap(y_true, y_pred_sorted)
     else:
         # average metrics across n random orderings
         n = 10
@@ -55,10 +57,10 @@ def average_precision(y_true, y_pred):
         for _ in range(n):
             shuffled_ind = np.random.permutation(len(y_pred))
             y_pred_shuffled = [y_pred[i] for i in shuffled_ind]
-            ap = voc_ap(y_true, y_pred_shuffled)
+            ap, prec, rec = voc_ap(y_true, y_pred_shuffled)
             aps.append(ap)
         ap = np.mean(aps)
-    return ap
+    return ap, prec, rec
 
 
 # Below code is modified from
@@ -127,4 +129,4 @@ def voc_ap(y_true, y_pred, ovthresh=0.5):
             p = np.max(prec[rec >= t])
         ap = ap + p / 11.0
 
-    return ap
+    return ap, prec, rec
