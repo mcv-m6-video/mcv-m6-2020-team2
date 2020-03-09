@@ -1,9 +1,11 @@
+import os
 import numpy as np
 import cv2
 from collections import defaultdict
 from tqdm import trange
 import matplotlib.pyplot as plt
 import random
+import imageio
 
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
 from src.segmentation.background_estimation import SingleGaussianBackgroundModel, get_bg_substractor
@@ -12,7 +14,7 @@ from src.evaluation.average_precision import mean_average_precision
 from src.utils.processing import denoise, fill_holes, bounding_boxes
 
 
-def task1(model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600, debug=0):
+def task1(path_plots, visualize=False, model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600, debug=0):
     """
     Gaussian modelling
     """
@@ -30,6 +32,9 @@ def task1(model_frac=0.25, min_width=120, max_width=800, min_height=100, max_hei
     end_frame = video_length
 
     for alpha in [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]:
+        if visualize:
+            writer = imageio.get_writer(os.path.join(path_plots, 'task1_alpha'+str(alpha)+'.gif'), fps=25)
+
         y_true = []
         y_pred = []
         for frame in trange(start_frame, end_frame, desc='evaluating frames'):
@@ -50,24 +55,32 @@ def task1(model_frac=0.25, min_width=120, max_width=800, min_height=100, max_hei
                     detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
             annotations = gt.get(frame, [])
 
-            if debug >= 1:
+            if debug >= 1 or visualize:
                 img = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
                 for det in detections:
                     cv2.rectangle(img, (det.xtl, det.ytl), (det.xbr, det.ybr), (0, 255, 0), 2)
                 for det in annotations:
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
-                cv2.imshow('result', img)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
+                
+                if visualize:
+                    writer.append_data(img)
+                
+                if debug >= 1:
+                    cv2.imshow('result', img)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
 
             y_pred.append(detections)
             y_true.append(annotations)
+
+        if visualize:
+            writer.close()
 
         ap = mean_average_precision(y_true, y_pred, classes=['car'])
         print(f'alpha: {alpha}, AP: {ap:.4f}')
 
 
-def task2(model_frac=0.25, search_type='random', min_width=120, max_width=800, min_height=100, max_height=600, debug=0):
+def task2(path_plots, visualize=False, model_frac=0.25, search_type='random', min_width=120, max_width=800, min_height=100, max_height=600, debug=0):
     """
     Adaptive modelling
     """
@@ -97,6 +110,9 @@ def task2(model_frac=0.25, search_type='random', min_width=120, max_width=800, m
             combinations.append([random.choice(alphas), random.choice(rhos)])
 
     for alpha, rho in combinations:
+        if visualize:
+            writer = imageio.get_writer(os.path.join(path_plots, 'task2_alpha'+str(alpha)+'_rho_'+str(rho)+'.gif'), fps=25)
+
         y_true = []
         y_pred = []
         for frame in trange(start_frame, end_frame, desc='evaluating frames'):
@@ -109,7 +125,7 @@ def task2(model_frac=0.25, search_type='random', min_width=120, max_width=800, m
             if debug >= 2:
                 plt.imshow(mask); plt.show()
 
-            _, contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             detections = []
             for c in contours:
                 x, y, w, h = cv2.boundingRect(c)
@@ -117,18 +133,26 @@ def task2(model_frac=0.25, search_type='random', min_width=120, max_width=800, m
                     detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
             annotations = gt.get(frame, [])
 
-            if debug >= 1:
+            if debug >= 1 or visualize:
                 img = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
                 for det in detections:
                     cv2.rectangle(img, (det.xtl, det.ytl), (det.xbr, det.ybr), (0, 255, 0), 2)
                 for det in annotations:
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
-                cv2.imshow('result', img)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
+                
+                if visualize:
+                    writer.append_data(img)
+                
+                if debug >= 1:
+                    cv2.imshow('result', img)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
 
             y_pred.append(detections)
             y_true.append(annotations)
+
+        if visualize:
+            writer.close()
 
         ap = mean_average_precision(y_true, y_pred, classes=['car'])
         print(f'alpha: {alpha}, rho: {rho}, AP: {ap:.4f}')
