@@ -1,7 +1,9 @@
+import numpy as np
 import cv2
 from collections import defaultdict
 from tqdm import trange
 import matplotlib.pyplot as plt
+import random
 
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
 from src.segmentation.background_estimation import SingleGaussianBackgroundModel, get_bg_substractor
@@ -65,12 +67,71 @@ def task1(model_frac=0.25, min_width=120, max_width=800, min_height=100, max_hei
         print(f'alpha: {alpha}, AP: {ap:.4f}')
 
 
-def task2():
+def task2(model_frac=0.25, search_type='random', min_width=120, max_width=800, min_height=100, max_height=600, debug=0):
     """
     Adaptive modelling
     """
 
-    pass
+    reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
+    gt = reader.get_annotations(classes=['car'], only_not_parked=True)
+
+    bg_model = SingleGaussianBackgroundModel(video_path='data/AICity_data/train/S03/c010/vdo.avi')
+    video_length = bg_model.length
+    bg_model.fit(start=0, length=int(video_length * model_frac))
+
+    roi = cv2.imread('data/AICity_data/train/S03/c010/roi.jpg', cv2.IMREAD_GRAYSCALE)
+
+    start_frame = int(video_length * model_frac)
+    end_frame = video_length
+
+    # 25 combinations are tested in each case
+    if search_type == 'grid':
+        alphas = [2, 2.5, 3, 3.5, 4]
+        rhos = [0.005, 0.01, 0.025, 0.05, 0.1]
+        combinations = [[a, r] for a in alphas for r in rhos]
+    elif search_type == 'random':
+        alphas = np.linspace(2, 4, 50)
+        rhos = np.linspace(0.001, 0.1, 50)
+        combinations = []
+        for i in range(25):
+            combinations.append([random.choice(alphas), random.choice(rhos)])
+
+    for alpha, rho in combinations:
+        y_true = []
+        y_pred = []
+        for frame in trange(start_frame, end_frame, desc='evaluating frames'):
+            _, mask = bg_model.evaluate(frame=frame, alpha=alpha, rho=rho)
+            mask = mask & roi
+            if debug >= 2:
+                plt.imshow(mask); plt.show()
+
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
+            if debug >= 2:
+                plt.imshow(mask); plt.show()
+
+            _, contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            detections = []
+            for c in contours:
+                x, y, w, h = cv2.boundingRect(c)
+                if min_width < w < max_width and min_height < h < max_height:
+                    detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
+            annotations = gt.get(frame, [])
+
+            if debug >= 1:
+                img = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+                for det in detections:
+                    cv2.rectangle(img, (det.xtl, det.ytl), (det.xbr, det.ybr), (0, 255, 0), 2)
+                for det in annotations:
+                    cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
+                cv2.imshow('result', img)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+
+            y_pred.append(detections)
+            y_true.append(annotations)
+
+        ap = mean_average_precision(y_true, y_pred, classes=['car'])
+        print(f'alpha: {alpha}, rho: {rho}, AP: {ap:.4f}')
 
 
 def task3(bg_subst_methods, model_frac=0.25, history=10, debug=0):
