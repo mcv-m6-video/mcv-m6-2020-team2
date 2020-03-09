@@ -74,7 +74,7 @@ def get_bg_substractor(method):
     elif method == 'GMG':
         backSub = cv2.bgsegm.createBackgroundSubtractorGMG()
     elif method == 'KNN':
-        backSub = cv2.createBackgroundSubtractor()
+        backSub = cv2.createBackgroundSubtractorKNN()
     elif method == 'GSOC':
         backSub = cv2.bgsegm.createBackgroundSubtractorGSOC()
     elif method == 'CNT':
