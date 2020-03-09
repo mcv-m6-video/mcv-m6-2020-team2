@@ -2,19 +2,18 @@ import numpy as np
 import cv2
 from tqdm import trange
 
-from src.utils.color import convert_from_bgr
+from src.utils.color import convert_from_bgr, default_num_channels
 
 
 class SingleGaussianBackgroundModel:
 
-    def __init__(self, video_path, color_space='gray', channels=[True,True,True]):
+    def __init__(self, video_path, color_space='gray', channels=None):
         self.cap = cv2.VideoCapture(video_path)
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.length = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         self.color_space = color_space
-        self.channels = np.array(channels)
-
+        self.channels = channels
 
     def fit(self, start=0, length=None):
         if length is None:
@@ -23,27 +22,25 @@ class SingleGaussianBackgroundModel:
 
         # Welford's online variance algorithm
         # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
-        num_channels = 1 if self.color_space == 'gray' else np.count_nonzero(self.channels == True)
         count = 0
+        num_channels = default_num_channels(self.color_space) if self.channels is None else len(self.channels)
         mean = np.zeros((self.height, self.width, num_channels))
         M2 = np.zeros((self.height, self.width, num_channels))
-
         for _ in trange(length, desc='modelling background'):
             ret, img = self.cap.read()
-            img = self._convert_from_bgr_with_channels(img)
+            img = convert_from_bgr(img, self.color_space, self.channels)
             count += 1
             delta = img - mean
             mean += delta / count
             delta2 = img - mean
             M2 += delta * delta2
-
         self.mean = mean
         self.std = np.sqrt(M2 / count)
 
     def evaluate(self, frame, alpha=2.5, rho=0.01, only_update_bg=True):
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
         ret, img_bgr = self.cap.read()
-        img = self._convert_from_bgr_with_channels(img_bgr)
+        img = convert_from_bgr(img_bgr, self.color_space, self.channels)
 
         # segment foreground
         fg = np.bitwise_and.reduce(np.abs(img - self.mean) >= alpha * (self.std + 2), axis=2)
@@ -60,9 +57,6 @@ class SingleGaussianBackgroundModel:
 
         return img_bgr, (fg * 255).astype(np.uint8)
 
-    def _convert_from_bgr_with_channels(self, img):
-        image = convert_from_bgr(img, self.color_space)
-        return image[..., np.newaxis] if self.color_space == 'gray' else image[:, :, np.array(self.channels)]
 
 def get_bg_substractor(method):
     if method == 'MOG':
@@ -83,14 +77,16 @@ def get_bg_substractor(method):
         raise ValueError(f"Unknown background estimation method {method}. Options are [MOG, MOG2, LSBP, GMG, KNN, GSOC, CNT]")
     return backSub
 
+
 if __name__ == '__main__':
-    bg_model = SingleGaussianBackgroundModel(video_path='../../data/AICity_data/train/S03/c010/vdo.avi')
+    bg_model = SingleGaussianBackgroundModel(video_path='../../data/AICity_data/train/S03/c010/vdo.avi',
+                                             color_space='hsv', channels=(0, 1))
     bg_model.fit(start=0, length=500)
 
     for frame in range(550, 650):
         img, mask = bg_model.evaluate(frame=frame)
 
-        cv2.imshow('frame', img)
+        #cv2.imshow('frame', img)
         cv2.imshow('foreground', mask)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
