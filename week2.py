@@ -1,10 +1,10 @@
 import os
+from collections import defaultdict
+
 import numpy as np
 import cv2
-from collections import defaultdict
 from tqdm import trange
 import matplotlib.pyplot as plt
-import random
 import imageio
 
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
@@ -14,155 +14,93 @@ from src.evaluation.average_precision import mean_average_precision
 from src.utils.processing import denoise, fill_holes, bounding_boxes
 
 
-def task1(path_plots, visualize=False, model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600,
-          debug=0):
+def task1_2(adaptive, random_search, model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600,
+            debug=0, save_path=None):
+    reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
+    gt = reader.get_annotations(classes=['car'], only_not_parked=True)
+
+    bg_model = SingleGaussianBackgroundModel(video_path='data/AICity_data/train/S03/c010/vdo.avi')
+    video_length = bg_model.length
+    bg_model.fit(start=0, length=int(video_length * model_frac))
+
+    roi = cv2.imread('data/AICity_data/train/S03/c010/roi.jpg', cv2.IMREAD_GRAYSCALE)
+
+    start_frame = int(video_length * model_frac)
+    end_frame = video_length
+
+    # hyperparameter search
+    if random_search:
+        alphas = np.random.choice(np.linspace(2, 4, 50), 25)
+        rhos = np.random.choice(np.linspace(0.001, 0.1, 50), 25) if adaptive else [0]
+        combinations = [(alpha, rho) for alpha, rho in zip(alphas, rhos)]
+    else:
+        alphas = [2, 2.5, 3, 3.5, 4]
+        rhos = [0.005, 0.01, 0.025, 0.05, 0.1] if adaptive else [0]
+        combinations = [(alpha, rho) for alpha in alphas for rho in rhos]
+
+    for alpha, rho in combinations:
+        if save_path:
+            writer = imageio.get_writer(os.path.join(save_path, f'task1_2_alpha{alpha:.1f}_rho{rho:.3f}.gif'), fps=10)
+
+        y_true = []
+        y_pred = []
+        for frame in trange(start_frame, end_frame, desc=f'evaluating frames'):
+            _, mask = bg_model.evaluate(frame=frame, alpha=alpha, rho=rho)
+            mask = mask & roi
+            if debug >= 2:
+                plt.imshow(mask); plt.show()
+
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
+            if debug >= 2:
+                plt.imshow(mask); plt.show()
+
+            contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            detections = []
+            for c in contours:
+                x, y, w, h = cv2.boundingRect(c)
+                if min_width < w < max_width and min_height < h < max_height:
+                    detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
+            annotations = gt.get(frame, [])
+
+            if debug >= 1 or save_path:
+                img = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+                for det in detections:
+                    cv2.rectangle(img, (det.xtl, det.ytl), (det.xbr, det.ybr), (0, 255, 0), 2)
+                for det in annotations:
+                    cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
+
+                if save_path:
+                    writer.append_data(img)
+
+                if debug >= 1:
+                    cv2.imshow('result', img)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+
+            y_pred.append(detections)
+            y_true.append(annotations)
+
+        if save_path:
+            writer.close()
+
+        ap = mean_average_precision(y_true, y_pred, classes=['car'])
+        print(f'alpha: {alpha:.1f}, rho: {rho:.3f}, AP: {ap:.4f}')
+
+
+def task1(debug=0, save_path=None):
     """
     Gaussian modelling
     """
 
-    reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
-    gt = reader.get_annotations(classes=['car'], only_not_parked=True)
-
-    bg_model = SingleGaussianBackgroundModel(video_path='data/AICity_data/train/S03/c010/vdo.avi')
-    video_length = bg_model.length
-    bg_model.fit(start=0, length=int(video_length * model_frac))
-
-    roi = cv2.imread('data/AICity_data/train/S03/c010/roi.jpg', cv2.IMREAD_GRAYSCALE)
-
-    start_frame = int(video_length * model_frac)
-    end_frame = video_length
-
-    for alpha in [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]:
-        if visualize:
-            writer = imageio.get_writer(os.path.join(path_plots, 'task1_alpha' + str(alpha) + '.gif'), fps=25)
-
-        y_true = []
-        y_pred = []
-        for frame in trange(start_frame, end_frame, desc='evaluating frames'):
-            _, mask = bg_model.evaluate(frame=frame, alpha=alpha, rho=0)
-            mask = mask & roi
-            if debug >= 2:
-                plt.imshow(mask);
-                plt.show()
-
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
-            if debug >= 2:
-                plt.imshow(mask);
-                plt.show()
-
-            contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            detections = []
-            for c in contours:
-                x, y, w, h = cv2.boundingRect(c)
-                if min_width < w < max_width and min_height < h < max_height:
-                    detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
-            annotations = gt.get(frame, [])
-
-            if debug >= 1 or visualize:
-                img = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-                for det in detections:
-                    cv2.rectangle(img, (det.xtl, det.ytl), (det.xbr, det.ybr), (0, 255, 0), 2)
-                for det in annotations:
-                    cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
-
-                if visualize:
-                    writer.append_data(img)
-
-                if debug >= 1:
-                    cv2.imshow('result', img)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
-
-            y_pred.append(detections)
-            y_true.append(annotations)
-
-        if visualize:
-            writer.close()
-
-        ap = mean_average_precision(y_true, y_pred, classes=['car'])
-        print(f'alpha: {alpha}, AP: {ap:.4f}')
+    task1_2(False, False, debug=debug, save_path=save_path)
 
 
-def task2(path_plots, visualize=False, model_frac=0.25, search_type='random', min_width=120, max_width=800,
-          min_height=100, max_height=600, debug=0):
+def task2(debug=0, save_path=None):
     """
     Adaptive modelling
     """
 
-    reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
-    gt = reader.get_annotations(classes=['car'], only_not_parked=True)
-
-    bg_model = SingleGaussianBackgroundModel(video_path='data/AICity_data/train/S03/c010/vdo.avi')
-    video_length = bg_model.length
-    bg_model.fit(start=0, length=int(video_length * model_frac))
-
-    roi = cv2.imread('data/AICity_data/train/S03/c010/roi.jpg', cv2.IMREAD_GRAYSCALE)
-
-    start_frame = int(video_length * model_frac)
-    end_frame = video_length
-
-    # 25 combinations are tested in each case
-    if search_type == 'grid':
-        alphas = [2, 2.5, 3, 3.5, 4]
-        rhos = [0.005, 0.01, 0.025, 0.05, 0.1]
-        combinations = [[a, r] for a in alphas for r in rhos]
-    elif search_type == 'random':
-        alphas = np.linspace(2, 4, 50)
-        rhos = np.linspace(0.001, 0.1, 50)
-        combinations = []
-        for i in range(25):
-            combinations.append([random.choice(alphas), random.choice(rhos)])
-
-    for alpha, rho in combinations:
-        if visualize:
-            writer = imageio.get_writer(
-                os.path.join(path_plots, 'task2_alpha' + str(alpha) + '_rho_' + str(rho) + '.gif'), fps=25)
-
-        y_true = []
-        y_pred = []
-        for frame in trange(start_frame, end_frame, desc='evaluating frames'):
-            _, mask = bg_model.evaluate(frame=frame, alpha=alpha, rho=rho)
-            mask = mask & roi
-            if debug >= 2:
-                plt.imshow(mask);
-                plt.show()
-
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
-            if debug >= 2:
-                plt.imshow(mask);
-                plt.show()
-
-            contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            detections = []
-            for c in contours:
-                x, y, w, h = cv2.boundingRect(c)
-                if min_width < w < max_width and min_height < h < max_height:
-                    detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
-            annotations = gt.get(frame, [])
-
-            if debug >= 1 or visualize:
-                img = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-                for det in detections:
-                    cv2.rectangle(img, (det.xtl, det.ytl), (det.xbr, det.ybr), (0, 255, 0), 2)
-                for det in annotations:
-                    cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
-
-                if visualize:
-                    writer.append_data(img)
-
-                if debug >= 1:
-                    cv2.imshow('result', img)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
-
-            y_pred.append(detections)
-            y_true.append(annotations)
-
-        if visualize:
-            writer.close()
-
-        ap = mean_average_precision(y_true, y_pred, classes=['car'])
-        print(f'alpha: {alpha}, rho: {rho}, AP: {ap:.4f}')
+    task1_2(True, True, debug=debug, save_path=save_path)
 
 
 def task3(bg_subst_methods, model_frac=0.25, history=10, debug=0):
@@ -271,7 +209,7 @@ def task4():
 
 
 if __name__ == '__main__':
-    # task1(debug=1)
-    # methods = ["MOG", "MOG2", "LSBP", "GMG", "KNN", "GSOC", "CNT"]
-    # task3(methods, debug=1)
-    task4()
+    #task1(save_path='results/week2')
+    task2(save_path='results/week2')
+    #task3(["MOG", "MOG2", "LSBP", "GMG", "KNN", "GSOC", "CNT"], debug=1)
+    #task4()
