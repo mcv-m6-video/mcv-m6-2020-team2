@@ -45,7 +45,7 @@ def task1_2(adaptive, random_search, model_frac=0.25, min_width=120, max_width=8
         y_true = []
         y_pred = []
         for frame in trange(start_frame, end_frame, desc=f'evaluating frames'):
-            _, mask = bg_model.evaluate(frame=frame, alpha=alpha, rho=rho)
+            _, mask, _ = bg_model.evaluate(frame=frame, alpha=alpha, rho=rho)
             mask = mask & roi
             if debug >= 2:
                 plt.imshow(mask); plt.show()
@@ -173,7 +173,7 @@ def task4():
     y_pred = []
 
     for frame in trange(int(video_length * 0.25), video_length, desc='obtaining foreground and detecting objects'):
-        frame_img, segmentation = bg_model.evaluate(frame=frame, alpha=alpha)
+        frame_img, segmentation, _ = bg_model.evaluate(frame=frame, alpha=alpha)
         segmentation_denoised = denoise(segmentation)
         segmentation_filled = fill_holes(segmentation_denoised)
 

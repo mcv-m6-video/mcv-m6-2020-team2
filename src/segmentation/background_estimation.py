@@ -58,7 +58,7 @@ class SingleGaussianBackgroundModel:
                 self.mean = rho * img + (1-rho) * self.mean
                 self.std = np.sqrt(rho * np.power(img - self.mean, 2) + (1-rho) * np.power(self.std, 2))
 
-        return img, (fg * 255).astype(np.uint8)
+        return img, (fg * 255).astype(np.uint8), self.mean.astype(np.uint8)
 
     def _read_and_preprocess(self):
         ret, img = self.cap.read()
@@ -89,14 +89,14 @@ def get_bg_substractor(method):
 
 
 if __name__ == '__main__':
-    bg_model = SingleGaussianBackgroundModel(video_path='../../data/AICity_data/train/S03/c010/vdo.avi',
-                                             color_space='hsv', channels=(0, 1), resize=0.5)
+    bg_model = SingleGaussianBackgroundModel(video_path='../../data/AICity_data/train/S03/c010/vdo.avi', resize=0.4)
     bg_model.fit(start=0, length=500)
 
-    for frame in range(550, 650):
-        img, mask = bg_model.evaluate(frame=frame)
+    for frame in trange(550, bg_model.length):
+        img, fg, bg = bg_model.evaluate(frame=frame)
 
-        #cv2.imshow('frame', img)
-        cv2.imshow('foreground', mask)
+        cv2.imshow('frame', img)
+        cv2.imshow('foreground', fg)
+        cv2.imshow('background', bg)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
