@@ -12,7 +12,6 @@ from src.utils.processing import postprocess, bounding_boxes
 from src.evaluation.average_precision import mean_average_precision
 
 
-
 def task1_2(adaptive, random_search, model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600,
             debug=0, save_path=None):
     reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
@@ -233,10 +232,6 @@ def task4(adaptive, random_search, model_frac=0.25, save_path=None, min_width=12
 
 if __name__ == '__main__':
     #task1(debug=1)
-    #task2(debug=0)
+    task2(debug=1)
     #task3(['MOG', 'MOG2', 'LSBP', 'GMG', 'KNN', 'GSOC', 'CNT'], debug=1)
-    path_plots = 'results/'
-    if not os.path.exists(path_plots):
-        os.makedirs(path_plots)
-
-    task4(adaptive=True, random_search=False, save_path=path_plots,  debug=1)
+    #task4(adaptive=True, random_search=False, save_path='results/week2', debug=1)

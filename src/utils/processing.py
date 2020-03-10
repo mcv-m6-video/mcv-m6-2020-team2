@@ -10,7 +10,7 @@ def postprocess(mask):
 
 
 def bounding_boxes(mask, min_height, max_height, min_width, max_width, frame):
-    _, contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     detections = []
     for c in contours:
         x, y, w, h = cv2.boundingRect(c)
