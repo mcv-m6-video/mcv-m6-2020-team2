@@ -95,3 +95,19 @@ def histogram_with_mean_plot(title: str, idx: str, values: float, mean_value: fl
     plt.legend()
     plt.savefig(os.path.join(save_path, f'histogram_{idx}.png')) if save_path else plt.show()
     plt.close()
+
+def plot_3d(x, y, z):
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    l = ax.scatter(x, y, z, c=z, cmap= plt.cm.cool)
+    ax.set_xlabel("alpha threshold")
+    ax.set_ylabel("rho")
+    ax.set_zlabel("mAP")
+    fig.colorbar(l)
+    plt.show()
+
+if __name__ == '__main__':
+    alpha=[5, 4.1, 5.9, 6.4, 6.2, 5.8, 3.5, 6.8, 5.3, 6.6, 2.8, 6.2, 5, 6.4, 5.2, 3, 5.4, 2, 5.3, 4, 2.5, 2.4, 4.8, 3.8, 4.2]
+    rho = [0.076, 0.019, 0.049, 0.084, 0.017, 0.084, 0.033, 0.094, 0.072, 0.072, 0.088, 0.076, 0.072, 0.025, 0.013, 0.021, 0.037, 0.041, 0.011, 0.094, 0.029, 0.052, 0.043, 0.031, 0.037]
+    mAP = [0.2466, 0.2587, 0.17, 0.1198, 0.1531, 0.167, 0.2059, 0.1043, 0.1795, 0.1146, 0.1902, 0.1318, 0.2057, 0.1481, 0.33, 0.5445, 0.2584, 0.0558, 0.2979, 0.4102, 0.1117, 0.1022, 0.2566, 0.3971, 0.361]
+    plot_3d(alpha, rho, mAP)

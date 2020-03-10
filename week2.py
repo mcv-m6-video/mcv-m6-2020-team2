@@ -92,7 +92,7 @@ def task2(debug=0, save_path=None):
     task1_2(True, True, debug=debug, save_path=save_path)
 
 
-def task3(methods, model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600, history=10, debug=0):
+def task3(methods, model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600, save_path=None, debug=0):
     """
     Comparison with the state of the art
     """
@@ -114,6 +114,9 @@ def task3(methods, model_frac=0.25, min_width=120, max_width=800, min_height=100
             ret, img = cap.read()
             backSub.apply(img)
 
+        if save_path:
+            writer = imageio.get_writer(os.path.join(save_path, f'task3_method_'+method+'.gif'), fps=10)
+
         y_pred = []
         y_true = []
         for frame in trange(start_frame, end_frame, desc='evaluating frames'):
@@ -127,21 +130,26 @@ def task3(methods, model_frac=0.25, min_width=120, max_width=800, min_height=100
             detections = bounding_boxes(mask, min_height, max_height, min_width, max_width, frame)
             annotations = gt.get(frame, [])
 
-            if debug >= 1:
+            if debug >= 1 or save_path:
                 img = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
                 for det in detections:
                     cv2.rectangle(img, (det.xtl, det.ytl), (det.xbr, det.ybr), (0, 255, 0), 2)
                 for det in annotations:
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
 
-                cv2.imshow('result', img)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
+                if save_path:
+                    writer.append_data(img)
+                elif debug == 1:
+                    cv2.imshow('result', img)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
 
             y_pred.append(detections)
             y_true.append(annotations)
 
         cv2.destroyAllWindows()
+        if save_path:
+            writer.close()
 
         ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
         print(f'Method: {method}, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
