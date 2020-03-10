@@ -7,7 +7,7 @@ import imageio
 
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
 from src.segmentation.background_estimation import SingleGaussianBackgroundModel, sota_bg_subtractor
-from src.utils.processing import postprocessing, bounding_boxes
+from src.utils.processing import postprocess, bounding_boxes
 from src.evaluation.average_precision import mean_average_precision
 
 
@@ -44,7 +44,7 @@ def task1_2(adaptive, random_search, model_frac=0.25, min_width=120, max_width=8
         for frame in trange(start_frame, end_frame, desc='evaluating frames'):
             _, mask, _ = bg_model.evaluate(frame=frame, alpha=alpha, rho=rho)
             mask = mask & roi
-            mask = postprocessing(mask)
+            mask = postprocess(mask)
 
             detections = bounding_boxes(mask, min_height, max_height, min_width, max_width, frame)
             annotations = gt.get(frame, [])
@@ -122,7 +122,7 @@ def task3(methods, model_frac=0.25, min_width=120, max_width=800, min_height=100
 
             mask = backSub.apply(img)
             mask = mask & roi
-            mask = postprocessing(mask)
+            mask = postprocess(mask)
 
             detections = bounding_boxes(mask, min_height, max_height, min_width, max_width, frame)
             annotations = gt.get(frame, [])
@@ -170,7 +170,7 @@ def task4():
 
     for frame in trange(int(video_length * 0.25), video_length, desc='obtaining foreground and detecting objects'):
         frame_img, segmentation, _ = bg_model.evaluate(frame=frame, alpha=alpha)
-        segmentation_postprocessed = postprocessing(segmentation)
+        segmentation_postprocessed = postprocess(segmentation)
 
         y_pred.append(bounding_boxes(segmentation, min_height=100, max_height=600, min_width=120, max_width=800, frame=frame))
         y_true.append(gt.get(frame, []))
@@ -201,6 +201,6 @@ def task4():
 
 if __name__ == '__main__':
     #task1(debug=1)
-    #task2(debug=1)
-    task3(['MOG', 'MOG2', 'LSBP', 'GMG', 'KNN', 'GSOC', 'CNT'], debug=1)
+    task2(debug=0)
+    #task3(['MOG', 'MOG2', 'LSBP', 'GMG', 'KNN', 'GSOC', 'CNT'], debug=1)
     #task4()

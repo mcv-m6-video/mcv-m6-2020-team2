@@ -3,7 +3,7 @@ import cv2
 from src.utils.detection import Detection
 
 
-def postprocessing(mask):
+def postprocess(mask):
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
     return mask
