@@ -1,6 +1,7 @@
 numpy
 xmltodict
 opencv-python
+opencv-contrib-python
 matplotlib
 tqdm
 scikit-image

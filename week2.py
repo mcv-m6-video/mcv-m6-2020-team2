@@ -3,14 +3,12 @@ import os
 import numpy as np
 import cv2
 from tqdm import trange
-import matplotlib.pyplot as plt
 import imageio
 
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
-from src.segmentation.background_estimation import SingleGaussianBackgroundModel, get_bg_substractor
-from src.utils.detection import Detection
+from src.segmentation.background_estimation import SingleGaussianBackgroundModel, sota_bg_subtractor
+from src.utils.processing import postprocessing, bounding_boxes
 from src.evaluation.average_precision import mean_average_precision
-from src.utils.processing import denoise, fill_holes, bounding_boxes
 
 
 def task1_2(adaptive, random_search, model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600,
@@ -18,11 +16,11 @@ def task1_2(adaptive, random_search, model_frac=0.25, min_width=120, max_width=8
     reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
     gt = reader.get_annotations(classes=['car'], only_not_parked=True)
 
+    roi = cv2.imread('data/AICity_data/train/S03/c010/roi.jpg', cv2.IMREAD_GRAYSCALE)
+
     bg_model = SingleGaussianBackgroundModel(video_path='data/AICity_data/train/S03/c010/vdo.avi')
     video_length = bg_model.length
     bg_model.fit(start=0, length=int(video_length * model_frac))
-
-    roi = cv2.imread('data/AICity_data/train/S03/c010/roi.jpg', cv2.IMREAD_GRAYSCALE)
 
     start_frame = int(video_length * model_frac)
     end_frame = video_length
@@ -43,22 +41,12 @@ def task1_2(adaptive, random_search, model_frac=0.25, min_width=120, max_width=8
 
         y_true = []
         y_pred = []
-        for frame in trange(start_frame, end_frame, desc=f'evaluating frames'):
+        for frame in trange(start_frame, end_frame, desc='evaluating frames'):
             _, mask, _ = bg_model.evaluate(frame=frame, alpha=alpha, rho=rho)
             mask = mask & roi
-            if debug >= 2:
-                plt.imshow(mask); plt.show()
+            mask = postprocessing(mask)
 
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
-            if debug >= 2:
-                plt.imshow(mask); plt.show()
-
-            contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            detections = []
-            for c in contours:
-                x, y, w, h = cv2.boundingRect(c)
-                if min_width < w < max_width and min_height < h < max_height:
-                    detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
+            detections = bounding_boxes(mask, min_height, max_height, min_width, max_width, frame)
             annotations = gt.get(frame, [])
 
             if debug >= 1 or save_path:
@@ -78,6 +66,8 @@ def task1_2(adaptive, random_search, model_frac=0.25, min_width=120, max_width=8
 
             y_pred.append(detections)
             y_true.append(annotations)
+
+        cv2.destroyAllWindows()
 
         if save_path:
             writer.close()
@@ -102,55 +92,59 @@ def task2(debug=0, save_path=None):
     task1_2(True, True, debug=debug, save_path=save_path)
 
 
-def task3(bg_subst_methods, model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600, history=10, debug=0):
+def task3(methods, model_frac=0.25, min_width=120, max_width=800, min_height=100, max_height=600, history=10, debug=0):
     """
     Comparison with the state of the art
     """
 
-    # Load ground truth
     reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
     gt = reader.get_annotations(classes=['car'], only_not_parked=True)
 
+    roi = cv2.imread('data/AICity_data/train/S03/c010/roi.jpg', cv2.IMREAD_GRAYSCALE)
+
     cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
     video_length = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+
     start_frame = int(video_length * model_frac)
     end_frame = int(video_length)
 
-    for sota_method in bg_subst_methods:
-        backSub = get_bg_substractor(sota_method)
+    for method in methods:
+        backSub = sota_bg_subtractor(method)
+        for _ in trange(start_frame, desc='modelling background'):
+            ret, img = cap.read()
+            backSub.apply(img)
+
         y_pred = []
         y_true = []
         for frame in trange(start_frame, end_frame, desc='evaluating frames'):
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-            retVal, img = cap.read()
+            ret, img = cap.read()
 
-            mask = backSub.apply(img, learningRate=1.0 / history)
-            if debug >= 2:
-                plt.imshow(mask); plt.show()
+            mask = backSub.apply(img)
+            mask = mask & roi
+            mask = postprocessing(mask)
 
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
-            if debug >= 2:
-                plt.imshow(mask); plt.show()
-
-            m, contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            detections = []
-            for c in contours:
-                x, y, w, h = cv2.boundingRect(c)
-                if min_width < w < max_width and min_height < h < max_height:
-                    detections.append(Detection(frame, None, 'car', x, y, x + w, y + h))
+            detections = bounding_boxes(mask, min_height, max_height, min_width, max_width, frame)
             annotations = gt.get(frame, [])
-            y_pred.append(detections)
-            y_true.append(annotations)
 
             if debug >= 1:
+                img = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
                 for det in detections:
                     cv2.rectangle(img, (det.xtl, det.ytl), (det.xbr, det.ybr), (0, 255, 0), 2)
                 for det in annotations:
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 0, 255), 2)
-                cv2.imshow('frame', img)
+
+                cv2.imshow('result', img)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+
+            y_pred.append(detections)
+            y_true.append(annotations)
+
+        cv2.destroyAllWindows()
 
         ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
-        print('Method:', sota_method, f'AP: {ap:.4f}', f'Precision: {prec:.4f}', f'Recall: {rec:.4f}')
+        print(f'Method: {method}, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
 
 
 def task4():
@@ -176,15 +170,10 @@ def task4():
 
     for frame in trange(int(video_length * 0.25), video_length, desc='obtaining foreground and detecting objects'):
         frame_img, segmentation, _ = bg_model.evaluate(frame=frame, alpha=alpha)
-        segmentation_denoised = denoise(segmentation)
-        segmentation_filled = fill_holes(segmentation_denoised)
+        segmentation_postprocessed = postprocessing(segmentation)
 
-        y_pred.append(
-            bounding_boxes(segmentation, frame=frame, min_height=100, max_height=600, min_width=120, max_width=800))
-        if frame in gt.keys():
-            y_true.append(gt[frame])
-        else:
-            y_true.append([])
+        y_pred.append(bounding_boxes(segmentation, min_height=100, max_height=600, min_width=120, max_width=800, frame=frame))
+        y_true.append(gt.get(frame, []))
 
         for item_pred, item_true in zip(y_pred[-1], y_true[-1]):
             cv2.rectangle(frame_img,
@@ -201,7 +190,7 @@ def task4():
         # for i in range(image_channels.shape[-1]):
         #     cv2.imshow(f'Channels_{i}', cv2.resize(image_channels[:,:,i], shape))
         cv2.imshow(f'Segmentation using {color_space}', cv2.resize(segmentation, shape))
-        cv2.imshow(f'Segmentation Morphed using {color_space}', cv2.resize(segmentation_filled, shape))
+        cv2.imshow(f'Segmentation Morphed using {color_space}', cv2.resize(segmentation_postprocessed, shape))
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -211,7 +200,7 @@ def task4():
 
 
 if __name__ == '__main__':
-    #task1(save_path='results/week2')
-    #task2(save_path='results/week2')
-    task3(["MOG", "MOG2", "LSBP", "GMG", "KNN", "GSOC", "CNT"], debug=0)
+    #task1(debug=1)
+    #task2(debug=1)
+    task3(['MOG', 'MOG2', 'LSBP', 'GMG', 'KNN', 'GSOC', 'CNT'], debug=1)
     #task4()

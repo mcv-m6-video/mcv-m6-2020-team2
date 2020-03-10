@@ -68,24 +68,24 @@ class SingleGaussianBackgroundModel:
         return img
 
 
-def get_bg_substractor(method):
+def sota_bg_subtractor(method):
     if method == 'MOG':
-        backSub = cv2.bgsegm.createBackgroundSubtractorMOG()
+        back_sub = cv2.bgsegm.createBackgroundSubtractorMOG()
     elif method == 'MOG2':
-        backSub = cv2.createBackgroundSubtractorMOG2()
+        back_sub = cv2.createBackgroundSubtractorMOG2()
     elif method == 'LSBP':
-        backSub = cv2.bgsegm.createBackgroundSubtractorLSBP()
+        back_sub = cv2.bgsegm.createBackgroundSubtractorLSBP()
     elif method == 'GMG':
-        backSub = cv2.bgsegm.createBackgroundSubtractorGMG()
+        back_sub = cv2.bgsegm.createBackgroundSubtractorGMG()
     elif method == 'KNN':
-        backSub = cv2.createBackgroundSubtractorKNN()
+        back_sub = cv2.createBackgroundSubtractorKNN()
     elif method == 'GSOC':
-        backSub = cv2.bgsegm.createBackgroundSubtractorGSOC()
+        back_sub = cv2.bgsegm.createBackgroundSubtractorGSOC()
     elif method == 'CNT':
-        backSub = cv2.bgsegm.createBackgroundSubtractorCNT()
+        back_sub = cv2.bgsegm.createBackgroundSubtractorCNT()
     else:
-        raise ValueError(f"Unknown background estimation method {method}. Options are [MOG, MOG2, LSBP, GMG, KNN, GSOC, CNT]")
-    return backSub
+        raise ValueError(f'Unknown background estimation method: {method}. Options are [MOG, MOG2, LSBP, GMG, KNN, GSOC, CNT]')
+    return back_sub
 
 
 if __name__ == '__main__':
