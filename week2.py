@@ -156,12 +156,10 @@ def task3(methods, model_frac=0.25, min_width=120, max_width=800, min_height=100
         print(f'Method: {method}, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
 
 
-def task4(adaptive, random_search, model_frac=0.25, save_path=None, min_width=120, max_width=800, min_height=100, max_height=600, debug=0):
+def task4(adaptive, random_search, color_space, channels, model_frac=0.25, save_path=None, min_width=120, max_width=800, min_height=100, max_height=600, debug=0):
     """
     Color modelling
     """
-    color_space = 'yuv'
-    channels = [1, 2]
     n_ch = len(channels)
 
     # Read information
@@ -177,7 +175,7 @@ def task4(adaptive, random_search, model_frac=0.25, save_path=None, min_width=12
 
     # Video length
     start_frame = int(video_length * model_frac)
-    end_frame = video_length
+    end_frame = int(video_length )
 
     # hyperparameter search
     if random_search:
@@ -185,8 +183,8 @@ def task4(adaptive, random_search, model_frac=0.25, save_path=None, min_width=12
         rhos = np.random.choice(np.linspace(0.001, 0.1, 50), 25) if adaptive else [0]
         combinations = [(alpha, rho) for alpha, rho in zip(alphas, rhos)]
     else:
-        alphas = [0.5, 1, 2]
-        rhos = [0.005, 0.01] if adaptive else [0]
+        alphas = [3.5]
+        rhos = [0.005] if adaptive else [0]
         combinations = [(alpha, rho) for alpha in alphas for rho in rhos]
 
     for alpha, rho in combinations:
@@ -194,11 +192,12 @@ def task4(adaptive, random_search, model_frac=0.25, save_path=None, min_width=12
         y_pred = []
 
         if save_path:
-            gif_name = f'task3_alpha_{str(alpha)}_rho_{str(rho)}_color_{color_space}_channels_{str(n_ch)}_{time.time()}.gif'
-            writer = imageio.get_writer(os.path.join(save_path, gif_name), fps=25)
+            gif_name = f'100_task3_alpha_{str(alpha)}_rho_{str(rho)}_color_{color_space}_channels_{str(n_ch)}_{time.time()}.gif'
+            writer = imageio.get_writer(os.path.join(save_path, gif_name), fps=10)
 
         for frame in trange(start_frame, end_frame, desc=f'obtaining foreground and detecting objects. Alpha {alpha} Rho {rho}'):
-
+            if frame == 635:
+                break
             frame_img, mask, _ = bg_model.evaluate(frame=frame, alpha=alpha)
             mask = mask & roi
             non_post_mask = mask
@@ -227,8 +226,8 @@ def task4(adaptive, random_search, model_frac=0.25, save_path=None, min_width=12
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
-                y_pred.append(detections)
-                y_true.append(annotations)
+            y_pred.append(detections)
+            y_true.append(annotations)
 
         cv2.destroyAllWindows()
         if save_path:
@@ -236,10 +235,12 @@ def task4(adaptive, random_search, model_frac=0.25, save_path=None, min_width=12
 
         ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
         print(f'alpha: {alpha:.1f}, rho: {rho:.3f}, AP: {ap:.4f}')
+        print(f'prec: {prec:.4f}, Recall {rec:.4f}')
 
 
 if __name__ == '__main__':
     #task1(debug=1)
     task2(debug=1)
     #task3(['MOG', 'MOG2', 'LSBP', 'GMG', 'KNN', 'GSOC', 'CNT'], debug=1)
-    #task4(adaptive=True, random_search=False, save_path='results/week2', debug=1)
+
+    task4(adaptive=True, random_search=False, color_space='rgb', channels=(0,1,2), save_path='results/', debug=0)

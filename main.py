@@ -32,7 +32,7 @@ elif args.week == 2:
     elif args.task == 3:
         week2.task3(path_plots)
     elif args.task == 4:
-        week2.task4(save_path=path_plots, adaptive=False, random_search=False,  debug=0)
+        week2.task4(adaptive=True, random_search=False, color_space='yuv', channels=(1, 2), save_path=None, debug=0)
 
     else:
         raise ValueError(f"Bad input task {args.task}. Options are [1,2,3,4]")

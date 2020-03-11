@@ -21,7 +21,7 @@ M6 - Video Analysis: Video Surveillance for Road Traffic Monitoring
 
 optional arguments:
   -h, --help            show this help message and exit
-  -w WEEK, --week WEEK  week to execute. Options are [1]
+  -w WEEK, --week WEEK  week to execute. Options are [1,2]
   -t TASK, --task TASK  task to execute. Options are [1,2,3,4]
 ```
 Figures for the results will be saved in `results/` 
@@ -39,6 +39,14 @@ The first step of the project is to implement the evaluation metrics needed to p
     * Mean Square Error in Non-occluded areas
     * Percentage of Erroneous Pixels in Non-occluded areas
 
+[Report](https://docs.google.com/presentation/d/1AVxaY5epmUaZSwrJ3hu4xbOBTjpmJxgu0Pms7UMf96Q/edit#slide=id.g81008797c9_19_94)
 
+## Week 2
+
+The goal of this week is to model the background of a video sequence in order to estimate the foreground objects. The background is modelled using a single gaussian method, both non-adaptive and adaptive. 
+
+For this, we use grayscale videos as well as colour information from different color spaces. We also compare our method with several SOTA methods from public python libraries.
+
+[Report](https://docs.google.com/presentation/d/1u4jSk3mfiY-k0kEzO-j3TatIRomean1OOWEv-l1FgTk/edit#slide=id.g613c54889_097)
 
 
