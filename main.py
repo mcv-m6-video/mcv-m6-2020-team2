@@ -1,6 +1,6 @@
 import argparse
 import os
-import week1, week2
+import week1, week2, week3
 
 parser = argparse.ArgumentParser(description='M6 - Video Analysis: Video Surveillance for Road Traffic Monitoring')
 
@@ -36,5 +36,23 @@ elif args.week == 2:
 
     else:
         raise ValueError(f"Bad input task {args.task}. Options are [1,2,3,4]")
+
+elif args.week == 3:
+    if args.task == 1_1:
+        week3.task1_1(model_name='fast', start=0, length=100)
+    elif args.task == 1_2:
+        week3.task1_2()
+    elif args.task == 2_1:
+        week3.task2_1(path_plots)
+    elif args.task == 2_2:
+        week3.task2_2()
+    else:
+        raise ValueError(f"Bad input task {args.task}. Options are [1_1, 1_2, 2_1, 2_2]")
+
+elif args.week == 4:
+    raise NotImplemented(f"Week {args.week} not yet implemented")
+elif args.week == 5:
+    raise NotImplemented(f"Week {args.week} not yet implemented")
+
 else:
-    raise ValueError(f"Bad input week {args.week}. Options are [1,2]")
+    raise ValueError(f"Bad input week {args.week}. Options are [1,2,3,4,5]")
