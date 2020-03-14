@@ -8,7 +8,7 @@ import time
 
 from src.evaluation.average_precision import mean_average_precision
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
-from src.segmentation.tracking import tracking_by_overlap, update_tracks
+from src.segmentation.tracking import update_tracks
 from src.utils.detection import Detection
 from src.utils.plotutils import video_iou_plot
 
@@ -116,18 +116,15 @@ def task2_1(save_path=None, debug=0, tracking_method='overlap'):
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
         ret, img = cap.read()
 
-        # Old version: works better but has no tracks
-        # frame_detections = tracking_by_overlap(annotations, frame)
-
         # New version: has tracks but does not perform very well
         new_detections = annotations.get(frame, [])
-        tracks, frame_detections, max_track = update_tracks(tracks, new_detections, max_track, tracking_method)
+        tracks, frame_tracks, max_track = update_tracks(tracks, new_detections, max_track, tracking_method)
 
         if debug >= 1 or save_path:
-            # TODO update print ids by coloring boxes
-            for det in frame_detections:
-                cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 255, 0), 2)
-                cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), (0, 255, 0), -2)
+            for track in frame_tracks:
+                det = track.last_detection()
+                cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), track.color, 2)
+                cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), track.color, -2)
                 cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 2)
 
         if save_path:

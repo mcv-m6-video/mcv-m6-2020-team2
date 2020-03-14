@@ -8,27 +8,26 @@ def update_tracks(tracks, new_detections, max_track, method):
         return update_tracks_by_overlap(tracks, new_detections, max_track)
 
 def update_tracks_by_overlap(tracks, new_detections, max_track):
-    frame_detections = []
-
+    frame_tracks = []
     for track in tracks:
         # Compare track detection in last frame with new detections
         matched_detection = match_next_bbox(track.last_detection(), new_detections)
         # If there's a match, refine detections
         if matched_detection:
-            matched_detection.id = track.last_detection().id
             refined_detection = refine_bbox(track.last_detection(), matched_detection)
             track.add_detection(refined_detection)
-            frame_detections.append(refined_detection)
+            frame_tracks.append(track)
             new_detections.remove(matched_detection)
 
     # Update tracks with unused detections after matching
     for unused_detection in new_detections:
         unused_detection.id = max_track + 1
-        tracks.append(Track(max_track + 1, [unused_detection]))
-        frame_detections.append(unused_detection)
+        new_track = Track(max_track + 1, [unused_detection])
+        tracks.append(new_track)
+        frame_tracks.append(new_track)
         max_track += 1
 
-    return tracks, frame_detections, max_track
+    return tracks, frame_tracks, max_track
 
 def update_tracks_by_kalman(tracks, new_detections, max_track):
     #TODO
@@ -50,34 +49,3 @@ def match_next_bbox(last_detection, unused_detections):
         return best_match
     else:
         return None
-
-
-def tracking_by_overlap(annotations, frame, iou_th=0.7):
-    '''
-    OLD NOW NOT USED
-    1.-Assign a unique ID to each new detected object in frame N.
-    2.-Assign the same ID to the detected object with the highest overlap (IoU) in frame N+1.
-    3.-Return to 1.
-    '''
-
-    detections = annotations.get(frame, [])
-    # If first frame, set ids
-    if frame - 1 not in annotations.keys():
-        for i in range(len(detections)):
-            detections[i].id = i
-        return detections
-    else:
-        old_detections = annotations.get(frame - 1, [])
-        old_ids = set()
-        for det in detections:
-            # Find closest detection in previous frame
-            for old_det in old_detections:
-                old_ids.add(old_det.id)
-                if bb_intersecion_over_union(det.bbox, old_det.bbox) > iou_th:
-                    det.id = old_det.id
-                    break
-            # Set new id when not matched to any previous id
-            if det.id == -1:
-                det.id = max(old_ids) + 1
-
-    return detections
