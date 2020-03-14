@@ -46,39 +46,39 @@ def task1_1(model_name, start=0, length=None, save_path='results/week3', device=
     model.eval()
     detections = {}
     y_true, y_pred = [], []
+    with torch.no_grad():
+        for frame in range(start, length):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
+            ret, img = cap.read()
 
-    for frame in range(start, length):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-        ret, img = cap.read()
+            # Transform input to tensor
+            print(f'Predict: {frame}')
+            start_t = time.time()
 
-        # Transform input to tensor
-        print(f'Predict: {frame}')
-        start_t = time.time()
+            x = tensor(img).to('cuda:0') if torch.cuda.is_available() else tensor(img)
+            preds = model([x])[0]
+            print(f"Inference time per frame: {round(time.time()-start_t, 2)}")
 
-        x = tensor(img).to('cuda:0') if torch.cuda.is_available() else tensor(img)
-        preds = model([x])[0]
-        print(f"Inference time per frame: {round(time.time()-start_t, 2)}")
+            # filter car predictions and confidences
+            joint_preds = list(zip(preds["labels"], preds["boxes"], preds["scores"]))
+            car_det = list(filter(lambda x: x[0] == 3, joint_preds))
+            car_det = list(filter(lambda x: x[2] > 0.70, car_det))
 
-        # filter car predictions and confidences
-        joint_preds = list(zip(preds["labels"], preds["boxes"], preds["scores"]))
-        car_det = list(filter(lambda x: x[0] == 3, joint_preds))
-        car_det = list(filter(lambda x: x[2] > 0.70, car_det))
+            detections[frame] = []
+            for det in car_det:
+                detections[frame].append(Detection(frame=frame,
+                                                        id=frame,
+                                                        label='car',
+                                                        xtl=float(det[1][0]),
+                                                        ytl=float(det[1][1]),
+                                                        xbr=float(det[1][2]),
+                                                        ybr=float(det[1][3]),
+                                                        score=det[2]))
 
-        detections[frame] = []
-        for det in car_det:
-            detections[frame].append(Detection(frame=frame,
-                                                    id=frame,
-                                                    label='car',
-                                                    xtl=float(det[1][0]),
-                                                    ytl=float(det[1][1]),
-                                                    xbr=float(det[1][2]),
-                                                    ybr=float(det[1][3]),
-                                                    score=det[2]))
-
-        # Prepare for mean_avg_precision
-        annotations = gt.get(frame, [])
-        y_pred.append(detections[frame])
-        y_true.append(annotations)
+            # Prepare for mean_avg_precision
+            annotations = gt.get(frame, [])
+            y_pred.append(detections[frame])
+            y_true.append(annotations)
 
     ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
     print(f'Network: {model_name}, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
