@@ -89,15 +89,15 @@ def task1_1(model_name, start=0, length=None, save_path='results/week3', device=
     video_iou_plot(gt, detections, video_path='data/AICity_data/train/S03/c010/vdo.avi', title=f'{model_name} detections',
                    save_path=save_path)
 
-
-
-
 def task1_2():
     '''Object detection: Fine-tune to your data'''
     return
 
-def task2_1(save_path=None, debug=0, tracking_method='overlap'):
-    '''Object tracking: Tracking by overlap'''
+def task2(save_path=None, debug=0, tracking_method='overlap'):
+    '''Object tracking
+     2.1. Tracking by overlap
+     2.2. Tracking with a Kalman filter
+    '''
 
     cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
     video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -138,10 +138,6 @@ def task2_1(save_path=None, debug=0, tracking_method='overlap'):
     if save_path:
         writer.close()
 
-def task2_2():
-    '''Object tracking:Tracking with a Kalman filter'''
-    return
-
 if __name__ == '__main__':
     #task1_1(model_name='mask', start=0, length=1)
-    task2_1(debug=1)
+    task2(debug=1)
