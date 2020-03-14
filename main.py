@@ -39,7 +39,7 @@ elif args.week == 2:
 
 elif args.week == 3:
     if args.task == 1_1:
-        week3.task1_1(model_name='fast', start=0, length=100)
+        week3.task1_1(model_name='fast', start=0, length=2)
     elif args.task == 1_2:
         week3.task1_2()
     elif args.task == 2_1:

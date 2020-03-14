@@ -3,16 +3,18 @@ import imageio
 import cv2
 from torchvision.models import detection
 from torchvision.transforms import transforms
+import torch
 import time
 
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
 from src.segmentation.tracking import tracking_by_overlap
-from utils.detection import Detection
-from utils.plotutils import video_iou_plot
+from src.utils.detection import Detection
+from src.utils.plotutils import video_iou_plot
 
 
-def task1_1(model_name, start=0, length=None, save_path='results/week3'):
+def task1_1(model_name, start=0, length=None, save_path='results/week3', device=0):
     ''' Object detection: Off-the-shelf '''
+
     tensor = transforms.ToTensor()
 
     if model_name.lower() == 'fast':
@@ -36,6 +38,10 @@ def task1_1(model_name, start=0, length=None, save_path='results/week3'):
     gt = {frame: gt[frame] for frame in range(start, start + length)}
 
     # Start Inference
+    if torch.cuda.is_available():
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(device)
+        model = model.to('cuda:0')
+
     model.eval()
     final_detections = {}
 
@@ -46,7 +52,9 @@ def task1_1(model_name, start=0, length=None, save_path='results/week3'):
         # Transform input to tensor
         print(f'Predict: {frame}')
         start_t = time.time()
-        preds = model([tensor(img)])[0]
+
+        x = tensor(img).to('cuda:0') if torch.cuda.is_available() else tensor(img)
+        preds = model([x])[0]
         print(f"Inference time per frame: {round(time.time()-start_t, 2)}")
 
         # filter car predictions and confidences
@@ -66,6 +74,8 @@ def task1_1(model_name, start=0, length=None, save_path='results/week3'):
                                                     score=det[2]))
 
     print(f'Saving result to {save_path}')
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
     video_iou_plot(gt, final_detections, video_path='data/AICity_data/train/S03/c010/vdo.avi', title=f'{model_name} detections',
                    save_path=save_path)
 
@@ -112,5 +122,5 @@ def task2_2():
     return
 
 if __name__ == '__main__':
-    task1_1(model_name='mask')
+    task1_1(model_name='mask', start=0, length=2)
     # task2_1(debug=1)
