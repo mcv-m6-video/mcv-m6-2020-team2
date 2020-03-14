@@ -6,6 +6,7 @@ from torchvision.transforms import transforms
 import torch
 import time
 
+from src.evaluation.average_precision import mean_average_precision
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
 from src.segmentation.tracking import tracking_by_overlap
 from src.utils.detection import Detection
@@ -43,7 +44,8 @@ def task1_1(model_name, start=0, length=None, save_path='results/week3', device=
         model = model.to('cuda:0')
 
     model.eval()
-    final_detections = {}
+    detections = {}
+    y_true, y_pred = [], []
 
     for frame in range(start, length):
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
@@ -62,9 +64,9 @@ def task1_1(model_name, start=0, length=None, save_path='results/week3', device=
         car_det = list(filter(lambda x: x[0] == 3, joint_preds))
         car_det = list(filter(lambda x: x[2] > 0.70, car_det))
 
-        final_detections[frame] = []
+        detections[frame] = []
         for det in car_det:
-            final_detections[frame].append(Detection(frame=frame,
+            detections[frame].append(Detection(frame=frame,
                                                     id=frame,
                                                     label='car',
                                                     xtl=float(det[1][0]),
@@ -73,11 +75,22 @@ def task1_1(model_name, start=0, length=None, save_path='results/week3', device=
                                                     ybr=float(det[1][3]),
                                                     score=det[2]))
 
+        # Prepare for mean_avg_precision
+        annotations = gt.get(frame, [])
+        y_pred.append(detections[frame])
+        y_true.append(annotations)
+
+    ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
+    print(f'Network: {model_name}, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+
     print(f'Saving result to {save_path}')
     if not os.path.exists(save_path):
         os.makedirs(save_path)
-    video_iou_plot(gt, final_detections, video_path='data/AICity_data/train/S03/c010/vdo.avi', title=f'{model_name} detections',
+    video_iou_plot(gt, detections, video_path='data/AICity_data/train/S03/c010/vdo.avi', title=f'{model_name} detections',
                    save_path=save_path)
+
+
+
 
 def task1_2():
     '''Object detection: Fine-tune to your data'''
@@ -122,5 +135,5 @@ def task2_2():
     return
 
 if __name__ == '__main__':
-    task1_1(model_name='mask', start=0, length=2)
+    task1_1(model_name='mask', start=0, length=1)
     # task2_1(debug=1)
