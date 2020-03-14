@@ -6,3 +6,4 @@ matplotlib
 tqdm
 scikit-image
 imageio
+torchvision
