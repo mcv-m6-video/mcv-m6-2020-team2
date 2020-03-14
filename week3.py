@@ -121,7 +121,7 @@ def task2_1(save_path=None, debug=0, tracking_method='overlap'):
 
         # New version: has tracks but does not perform very well
         new_detections = annotations.get(frame, [])
-        tracks, frame_detections = update_tracks(tracks, new_detections, max_track, tracking_method)
+        tracks, frame_detections, max_track = update_tracks(tracks, new_detections, max_track, tracking_method)
 
         if debug >= 1 or save_path:
             # TODO update print ids by coloring boxes
