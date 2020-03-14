@@ -8,7 +8,7 @@ import time
 
 from src.evaluation.average_precision import mean_average_precision
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
-from src.segmentation.tracking import update_tracks
+from src.method.tracking import update_tracks
 from src.utils.detection import Detection
 from src.utils.plotutils import video_iou_plot
 
