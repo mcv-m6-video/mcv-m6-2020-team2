@@ -9,7 +9,7 @@ from src.evaluation.intersection_over_union import mean_intersection_over_union
 
 
 def video_iou_plot(gt, det, video_path, title='', save_path=None):
-    frames = list(det.keys())
+    frames = list(gt.keys())
     overlaps = []
 
     for frame in frames:

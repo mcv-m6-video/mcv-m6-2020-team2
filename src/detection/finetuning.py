@@ -1,4 +1,5 @@
 from collections import defaultdict, OrderedDict
+import xml.etree.ElementTree as ET
 
 import torch
 import torch.utils.data
@@ -12,7 +13,6 @@ import src.detection.utils as utils
 
 
 def parse_annotations(ann_file):
-    import xml.etree.ElementTree as ET
     tree = ET.parse(ann_file)
     root = tree.getroot()
 
