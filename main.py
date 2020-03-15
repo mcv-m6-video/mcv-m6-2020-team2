@@ -42,10 +42,12 @@ elif args.week == 3:
         week3.task1_1(model_name='fast', start=0, length=2)
     elif args.task == 1_2:
         week3.task1_2()
-    elif args.task == 2:
-        week3.task2(path_plots, tracking_method='overlap')
+    elif args.task == 2_1:
+        week3.task2_1(path_plots)
+    elif args.task == 2_2:
+        week3.task2_2(path_plots)
     else:
-        raise ValueError(f"Bad input task {args.task}. Options are [1_1, 1_2, 2]")
+        raise ValueError(f"Bad input task {args.task}. Options are [1_1, 1_2, 2_1, 2_2]")
 
 elif args.week == 4:
     raise NotImplemented(f"Week {args.week} not yet implemented")

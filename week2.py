@@ -7,7 +7,7 @@ import imageio
 import time
 
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
-from src.method.background_estimation import SingleGaussianBackgroundModel, sota_bg_subtractor
+from src.segmentation.background_estimation import SingleGaussianBackgroundModel, sota_bg_subtractor
 from src.utils.processing import postprocess, bounding_boxes
 from src.evaluation.average_precision import mean_average_precision
 

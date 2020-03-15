@@ -1,12 +1,6 @@
 from src.utils.track import Track
 from src.evaluation.intersection_over_union import bb_intersecion_over_union
 
-def update_tracks(tracks, new_detections, max_track, method):
-    if method == 'overlap':
-        return update_tracks_by_overlap(tracks, new_detections, max_track)
-    elif method == 'kalman':
-        return update_tracks_by_overlap(tracks, new_detections, max_track)
-
 def update_tracks_by_overlap(tracks, new_detections, max_track):
     frame_tracks = []
     for track in tracks:
@@ -28,10 +22,6 @@ def update_tracks_by_overlap(tracks, new_detections, max_track):
         max_track += 1
 
     return tracks, frame_tracks, max_track
-
-def update_tracks_by_kalman(tracks, new_detections, max_track):
-    #TODO
-    return tracks, new_detections, max_track
 
 def refine_bbox(last_detection, new_detection):
     # TODO Refinement

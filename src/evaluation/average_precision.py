@@ -78,7 +78,7 @@ def average_precision(y_true, y_pred):
 
 def voc_ap(y_true, y_pred, ovthresh=0.5):
     """
-    Average Precision as defined by PASCAL VOC (11-point method).
+    Average Precision as defined by PASCAL VOC (11-point tracking).
 
     Args:
         y_true: [[Detection,...],...]
