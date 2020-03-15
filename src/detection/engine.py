@@ -1,10 +1,11 @@
 import math
 import sys
+import time
 import torch
 
-import torchvision.models.detection.mask_rcnn
-
 import src.detection.utils as utils
+from src.utils.detection import Detection
+from src.evaluation.average_precision import mean_average_precision
 
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
@@ -50,13 +51,41 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
 
 
-def _get_iou_types(model):
-    model_without_ddp = model
-    if isinstance(model, torch.nn.parallel.DistributedDataParallel):
-        model_without_ddp = model.module
-    iou_types = ["bbox"]
-    if isinstance(model_without_ddp, torchvision.models.detection.MaskRCNN):
-        iou_types.append("segm")
-    if isinstance(model_without_ddp, torchvision.models.detection.KeypointRCNN):
-        iou_types.append("keypoints")
-    return iou_types
+@torch.no_grad()
+def evaluate(model, data_loader, device):
+    n_threads = torch.get_num_threads()
+    # FIXME remove this and make paste_masks_in_image run on the GPU
+    torch.set_num_threads(1)
+    cpu_device = torch.device("cpu")
+    model.eval()
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    header = 'Test:'
+
+    for image, targets in metric_logger.log_every(data_loader, 100, header):
+        image = list(img.to(device) for img in image)
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+        torch.cuda.synchronize()
+        model_time = time.time()
+        outputs = model(image)
+
+        outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
+        model_time = time.time() - model_time
+
+        y_true = []
+        y_pred = []
+        for target, output in zip(targets, outputs):
+            frame = target['image_id']
+            y_true.append([Detection(frame, None, label, *box) for box, label in zip(target['boxes'], target['labels'])])
+            y_pred.append([Detection(frame, None, label, *box, score) for box, label, score in zip(output['boxes'], output['labels'], output['scores'])])
+
+        evaluator_time = time.time()
+        map, _, _ = mean_average_precision(y_true, y_pred)
+        evaluator_time = time.time() - evaluator_time
+        metric_logger.update(map=map, model_time=model_time, evaluator_time=evaluator_time)
+
+    # gather the stats from all processes
+    metric_logger.synchronize_between_processes()
+    print("Averaged stats:", metric_logger)
+
+    torch.set_num_threads(n_threads)

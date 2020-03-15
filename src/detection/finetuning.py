@@ -7,7 +7,7 @@ import torchvision
 import numpy as np
 import cv2
 
-from src.detection.engine import train_one_epoch
+from src.detection.engine import train_one_epoch, evaluate
 import src.detection.utils as utils
 
 
@@ -89,13 +89,13 @@ def main():
 
     # split the dataset in train and test set
     indices = np.random.permutation(len(dataset))
-    split = int(np.floor(len(dataset) * 0.75))
+    split = int(len(dataset)*0.75)
     train_sampler = torch.utils.data.SubsetRandomSampler(indices[:split])
     test_sampler = torch.utils.data.SubsetRandomSampler(indices[split:])
 
     # define training and validation data loaders
-    train_loader = torch.utils.data.DataLoader(dataset, batch_size=8, sampler=train_sampler, collate_fn=utils.collate_fn)
-    test_loader = torch.utils.data.DataLoader(dataset, batch_size=1, sampler=test_sampler, collate_fn=utils.collate_fn)
+    train_loader = torch.utils.data.DataLoader(dataset, batch_size=8, sampler=train_sampler, num_workers=1, collate_fn=utils.collate_fn)
+    test_loader = torch.utils.data.DataLoader(dataset, batch_size=1, sampler=test_sampler, num_workers=1, collate_fn=utils.collate_fn)
 
     # get the model using our helper function
     model = get_model(num_classes)
@@ -109,29 +109,18 @@ def main():
     # and a learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
-    # let's train it for 10 epochs
-    num_epochs = 10
+    # let's train it for 3 epochs
+    num_epochs = 3
 
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
         train_one_epoch(model, optimizer, train_loader, device, epoch, print_freq=10)
         # update the learning rate
         lr_scheduler.step()
+        # evaluate on the test dataset
+        evaluate(model, test_loader, device=device)
 
     print("That's it!")
-
-    model.eval()
-    images, targets = next(iter(test_loader))
-    images = [image.to(device) for image in images]
-    predictions = model(images)
-    for image, prediction in zip(images, predictions):
-        image = image.to('cpu').mul(255).numpy().astype(np.uint8).transpose((1, 2, 0))
-        image = np.ascontiguousarray(image)
-        boxes = prediction['boxes'].to('cpu').detach().numpy().astype(np.int32)
-        for box in boxes:
-            cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
-        cv2.imshow('image', image)
-        cv2.waitKey(0)
 
 
 if __name__ == '__main__':

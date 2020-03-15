@@ -29,7 +29,7 @@ def task1_1(save_path=None):
             y_true.append(gt.get(frame))
             y_pred.append(gt_noisy.get(frame, []))
 
-        map, _ = mean_average_precision(y_true, y_pred)
+        map, _, _ = mean_average_precision(y_true, y_pred)
         maps.append(map)
 
     plt.plot(drop_values, maps)
@@ -53,7 +53,7 @@ def task1_1(save_path=None):
             y_true.append(gt.get(frame))
             y_pred.append(gt_noisy.get(frame, []))
 
-        map, _ = mean_average_precision(y_true, y_pred)
+        map, _, _ = mean_average_precision(y_true, y_pred)
         maps.append(map)
 
     plt.xlabel('std')
@@ -79,7 +79,7 @@ def task1_2():
             y_true.append(gt.get(frame))
             y_pred.append(det.get(frame, []))
 
-        map, _ = mean_average_precision(y_true, y_pred)
+        map, _, _ = mean_average_precision(y_true, y_pred)
         print(f'{detector} mAP: {map:.4f}')
 
 
