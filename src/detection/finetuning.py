@@ -125,6 +125,19 @@ def main():
         # evaluate on the test dataset
         evaluate(model, test_loader, device=device)
 
+    with torch.no_grad():
+        for images, targets in test_loader:
+            images = [image.to(device) for image in images]
+            predictions = model(images)
+            for image, prediction in zip(images, predictions):
+                image = (image.to('cpu').numpy()*255).astype(np.uint8).transpose((1, 2, 0))
+                image = np.ascontiguousarray(image)
+                boxes = prediction['boxes'].to('cpu').numpy().astype(np.int32)
+                for box in boxes:
+                    cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
+                cv2.imshow('predictions', image)
+                cv2.waitKey(0)
+
 
 if __name__ == '__main__':
     main()
