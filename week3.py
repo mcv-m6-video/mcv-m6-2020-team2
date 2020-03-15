@@ -16,21 +16,18 @@ from src.utils.plotutils import video_iou_plot
 from src.tracking.sort import Sort
 
 
-def task1_1(model_name, start=0, length=None, save_path='results/week3', device=0):
+def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0, visualize=False):
     ''' Object detection: Off-the-shelf '''
-
     tensor = transforms.ToTensor()
 
-    if model_name.lower() == 'fast':
+    if architecture.lower() == 'fasterrcnn':
         model = detection.fasterrcnn_resnet50_fpn(pretrained=True)
-        model_name = 'FastRCNN'
 
-    elif model_name.lower() == 'mask':
+    elif architecture.lower() == 'maskrcnn':
         model = detection.maskrcnn_resnet50_fpn(pretrained=True)
-        model_name = 'MaskRCNN'
     else:
-        raise ValueError(model_name)
-    save_path = os.path.join(save_path, model_name)
+        raise ValueError(architecture)
+    save_path = os.path.join(save_path, architecture)
 
     # Read Video and prepare ground truth
     cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
@@ -42,10 +39,9 @@ def task1_1(model_name, start=0, length=None, save_path='results/week3', device=
     gt = {frame: gt[frame] for frame in range(start, start + length)}
 
     # Start Inference
-    if torch.cuda.is_available():
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(device)
-        model = model.to('cuda:0')
-
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+    model.to(device)
     model.eval()
     detections = {}
     y_true, y_pred = [], []
@@ -58,25 +54,25 @@ def task1_1(model_name, start=0, length=None, save_path='results/week3', device=
             print(f'Predict: {frame}')
             start_t = time.time()
 
-            x = tensor(img).to('cuda:0') if torch.cuda.is_available() else tensor(img)
-            preds = model([x])[0]
+            x = [tensor(img).to(device)]
+            preds = model(x)[0]
             print(f"Inference time per frame: {round(time.time()-start_t, 2)}")
 
             # filter car predictions and confidences
             joint_preds = list(zip(preds["labels"], preds["boxes"], preds["scores"]))
             car_det = list(filter(lambda x: x[0] == 3, joint_preds))
-            car_det = list(filter(lambda x: x[2] > 0.70, car_det))
+            car_det = list(filter(lambda x: x[2] > 0.80, car_det))
 
             detections[frame] = []
             for det in car_det:
                 detections[frame].append(Detection(frame=frame,
-                                                        id=frame,
-                                                        label='car',
-                                                        xtl=float(det[1][0]),
-                                                        ytl=float(det[1][1]),
-                                                        xbr=float(det[1][2]),
-                                                        ybr=float(det[1][3]),
-                                                        score=det[2]))
+                                                    id=frame,
+                                                    label='car',
+                                                    xtl=float(det[1][0]),
+                                                    ytl=float(det[1][1]),
+                                                    xbr=float(det[1][2]),
+                                                    ybr=float(det[1][3]),
+                                                    score=det[2]))
 
             # Prepare for mean_avg_precision
             annotations = gt.get(frame, [])
@@ -84,13 +80,15 @@ def task1_1(model_name, start=0, length=None, save_path='results/week3', device=
             y_true.append(annotations)
 
     ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
-    print(f'Network: {model_name}, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+    print(f'Network: {architecture}, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
 
-    print(f'Saving result to {save_path}')
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
-    video_iou_plot(gt, detections, video_path='data/AICity_data/train/S03/c010/vdo.avi', title=f'{model_name} detections',
-                   save_path=save_path)
+    if visualize:
+        print(f'Saving result to {save_path}')
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
+        video_iou_plot(gt, detections, video_path='data/AICity_data/train/S03/c010/vdo.avi', title=f'{architecture} detections',
+                       save_path=save_path)
 
 def task1_2():
     '''Object detection: Fine-tune to your data'''
