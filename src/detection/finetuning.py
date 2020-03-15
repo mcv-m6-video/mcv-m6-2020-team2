@@ -49,10 +49,8 @@ class AICityDataset(torch.utils.data.Dataset):
         boxes = torch.as_tensor(self.boxes.get(idx, []), dtype=torch.float32)
         labels = torch.ones((len(boxes),), dtype=torch.int64)
         image_id = torch.tensor([idx])
-        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-        iscrowd = torch.zeros((len(boxes),), dtype=torch.int64)
 
-        target = {'boxes': boxes, 'labels': labels, 'image_id': image_id, 'area': area, 'iscrowd': iscrowd}
+        target = {'boxes': boxes, 'labels': labels, 'image_id': image_id}
 
         return img, target
 
@@ -60,16 +58,23 @@ class AICityDataset(torch.utils.data.Dataset):
         return int(self.video_cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
 
-def get_model(num_classes):
+def get_model(num_classes, architecture='maskrcnn'):
     # load an instance segmentation model pre-trained pre-trained on COCO
-    model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
+    if architecture == 'fasterrcnn':
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+    elif architecture == 'maskrcnn':
+        model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
+    else:
+        raise ValueError('Unknown detection architecture.')
 
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     # replace the pre-trained head with a new one
     model.roi_heads.box_predictor = torchvision.models.detection.faster_rcnn.FastRCNNPredictor(in_features, num_classes)
 
-    # remove mask predictor
+    # remove mask heads
+    model.roi_heads.mask_roi_pool = None
+    model.roi_heads.mask_head = None
     model.roi_heads.mask_predictor = None
 
     return model
@@ -109,8 +114,8 @@ def main():
     # and a learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
-    # let's train it for 3 epochs
-    num_epochs = 3
+    # let's train it for some epochs
+    num_epochs = 1
 
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
@@ -119,8 +124,6 @@ def main():
         lr_scheduler.step()
         # evaluate on the test dataset
         evaluate(model, test_loader, device=device)
-
-    print("That's it!")
 
 
 if __name__ == '__main__':
