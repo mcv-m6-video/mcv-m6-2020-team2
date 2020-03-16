@@ -8,6 +8,7 @@ import time
 from tqdm import trange
 
 
+from src.evaluation.intersection_over_union import bb_intersecion_over_union
 from src.evaluation.average_precision import mean_average_precision
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
 from src.tracking.tracking import update_tracks_by_overlap
@@ -161,7 +162,7 @@ def task2_2(save_path=None, debug=0):
     annotations = reader.get_annotations(classes=['car'], only_not_parked=True)
 
     if save_path:
-        writer = imageio.get_writer(os.path.join(save_path, f'task21.gif'), fps=10)
+        writer = imageio.get_writer(os.path.join(save_path, f'task22.gif'), fps=10)
 
     kalman_tracker = Sort()
     y_true = []
@@ -178,7 +179,7 @@ def task2_2(save_path=None, debug=0):
 
         frame_detections = []
         for track_det in frame_tracks:
-            det = Detection(frame, int(track_det[4]), 'car', track_det[0], track_det[1], track_det[2], track_det[3])
+            det = Detection(frame, int(track_det[4]), 'car', track_det[0], track_det[1], track_det[2], track_det[3], find_closest_bb(track_det[:4], detections_on_frame).score)
             frame_detections.append(det)
             if debug >= 1 or save_path:
                 cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 255, 0), 2)
@@ -204,6 +205,18 @@ def task2_2(save_path=None, debug=0):
     print(f'Original AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
     ap, prec, rec = mean_average_precision(y_true, y_pred_kalman, classes=['car'])
     print(f'After Kalman filter AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+
+def find_closest_bb(bb, bb_list):
+    ''' Returns the bounding box in bb_list closest to bb '''
+    max_iou = 0
+    best_bb = bb_list[0]
+    for b in bb_list:
+        iou = bb_intersecion_over_union(bb, [b.xtl, b.ytl, b.xbr, b.ybr])
+        # print('\t',bb,[b.xtl, b.ytl, b.xbr, b.ybr],iou)
+        if iou > max_iou:
+            max_iou = iou
+            best_bb = b
+    return best_bb
 
 if __name__ == '__main__':
     #task1_1(model_name='mask', start=0, length=1)
