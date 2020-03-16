@@ -157,10 +157,10 @@ def task2_2(save_path=None, debug=0):
     cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
     video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
-    gt = reader.get_annotations(classes=['car'], only_not_parked=True)
+    reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
+    gt = reader.get_annotations(classes=['car'], only_not_parked=False)
     reader = AICityChallengeAnnotationReader(path=f'data/AICity_data/train/S03/c010/det/det_yolo3.txt')
-    annotations = reader.get_annotations(classes=['car'], only_not_parked=True)
+    annotations = reader.get_annotations(classes=['car'], only_not_parked=False)
 
     if save_path:
         writer = imageio.get_writer(os.path.join(save_path, f'task22.gif'), fps=10)
