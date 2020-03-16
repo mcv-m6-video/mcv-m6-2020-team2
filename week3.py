@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import imageio
 import cv2
 from torchvision.models import detection
@@ -174,7 +175,7 @@ def task2_2(save_path=None, debug=0):
 
         detections_on_frame = annotations.get(frame, [])
 
-        detections_formatted = [[det.xtl, det.ytl, det.xbr, det.ybr, det.score] for det in detections_on_frame]
+        detections_formatted = np.array([[det.xtl, det.ytl, det.xbr, det.ybr, det.score] for det in detections_on_frame])
         frame_tracks = kalman_tracker.update(detections_formatted)
 
         frame_detections = []
