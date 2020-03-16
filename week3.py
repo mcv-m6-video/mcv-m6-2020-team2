@@ -11,6 +11,7 @@ from tqdm import trange
 
 from src.evaluation.intersection_over_union import bb_intersecion_over_union
 from src.evaluation.average_precision import mean_average_precision
+from src.evaluation.idf1 import MOTAcumulator
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
 from src.tracking.tracking import update_tracks_by_overlap
 from src.utils.detection import Detection
@@ -166,6 +167,7 @@ def task2_2(save_path=None, debug=0):
         writer = imageio.get_writer(os.path.join(save_path, f'task22.gif'), fps=10)
 
     kalman_tracker = Sort()
+    accumulator = MOTAcumulator()
     y_true = []
     y_pred = []
     y_pred_kalman = []
@@ -191,6 +193,8 @@ def task2_2(save_path=None, debug=0):
         y_pred.append(detections_on_frame)
         y_true.append(gt.get(frame, []))
 
+        accumulator.update(y_true[-1], y_pred_kalman[-1])
+
         if save_path:
             writer.append_data(cv2.resize(img, (600, 350)))
         elif debug >= 1:
@@ -206,6 +210,8 @@ def task2_2(save_path=None, debug=0):
     print(f'Original AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
     ap, prec, rec = mean_average_precision(y_true, y_pred_kalman, classes=['car'])
     print(f'After Kalman filter AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+    print('\nAdditional metrics:')
+    print(accumulator.compute())
 
 def find_closest_bb(bb, bb_list):
     ''' Returns the bounding box in bb_list closest to bb '''
