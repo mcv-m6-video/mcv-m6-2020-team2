@@ -39,7 +39,7 @@ elif args.week == 2:
 
 elif args.week == 3:
     if args.task == 1_1:
-        week3.task1_1(architecture='maskrcnn', start=0, length=None, gpu=0, visualize=False)
+        week3.task1_1(architecture='maskrcnn', start=0, length=None, gpu=3, visualize=False, track_flag=True)
     elif args.task == 1_2:
         week3.task1_2()
     elif args.task == 2_1:

@@ -17,9 +17,10 @@ from src.tracking.tracking import update_tracks_by_overlap
 from src.utils.detection import Detection
 from src.utils.plotutils import video_iou_plot
 from src.tracking.sort import Sort
+from utils.non_maximum_supression import get_nms
 
 
-def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0, visualize=False):
+def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0, visualize=False, track_flag=False):
     ''' Object detection: Off-the-shelf '''
     tensor = transforms.ToTensor()
 
@@ -48,6 +49,13 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
     model.eval()
     detections = {}
     y_true, y_pred = [], []
+
+
+    if track_flag:
+        tracks = []
+        max_track = 0
+        writer = imageio.get_writer(os.path.join(save_path, 'task11.gif'), fps=10)
+
     with torch.no_grad():
         for frame in range(start, length):
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
@@ -64,12 +72,14 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
             # filter car predictions and confidences
             joint_preds = list(zip(preds["labels"], preds["boxes"], preds["scores"]))
             car_det = list(filter(lambda x: x[0] == 3, joint_preds))
-            car_det = list(filter(lambda x: x[2] > 0.80, car_det))
+            # car_det = list(filter(lambda x: x[2] > 0.70, car_det))
+            car_det = get_nms(car_det, 0.7)
 
+            # add detections
             detections[frame] = []
             for det in car_det:
                 detections[frame].append(Detection(frame=frame,
-                                                    id=frame,
+                                                    id=None,
                                                     label='car',
                                                     xtl=float(det[1][0]),
                                                     ytl=float(det[1][1]),
@@ -77,10 +87,26 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
                                                     ybr=float(det[1][3]),
                                                     score=det[2]))
 
-            # Prepare for mean_avg_precision
-            annotations = gt.get(frame, [])
-            y_pred.append(detections[frame])
-            y_true.append(annotations)
+            if track_flag:
+                tracks, frame_tracks, max_track = update_tracks_by_overlap(tracks, detections[frame], max_track)
+
+                frame_detections = []
+                for track in frame_tracks:
+                    det = track.last_detection()
+                    frame_detections.append(det)
+
+                    cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), track.color, 2)
+                    cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), track.color, -2)
+                    cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1,
+                                (0, 0, 0), 2)
+
+                writer.append_data(cv2.resize(img, (600, 350)))
+
+                y_pred.append(frame_detections)
+            else:
+                y_pred.append(detections[frame])
+
+            y_true.append(gt.get(frame, []))
 
     ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
     print(f'Network: {architecture}, AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
@@ -93,6 +119,12 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
         video_iou_plot(gt, detections, video_path='data/AICity_data/train/S03/c010/vdo.avi', title=f'{architecture} detections',
                        save_path=save_path)
 
+    cv2.destroyAllWindows()
+    if track_flag:
+        writer.close()
+
+
+
 def task1_2():
     '''Object detection: Fine-tune to your data'''
     return
@@ -103,12 +135,12 @@ def task2_1(save_path=None, debug=0):
     '''
 
     cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
-    video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) * 0.1)
 
-    reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/gt/gt.txt')
-    gt = reader.get_annotations(classes=['car'], only_not_parked=True)
+    reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
+    gt = reader.get_annotations(classes=['car'], only_not_parked=False)
     reader = AICityChallengeAnnotationReader(path=f'data/AICity_data/train/S03/c010/det/det_yolo3.txt')
-    annotations = reader.get_annotations(classes=['car'], only_not_parked=True)
+    annotations = reader.get_annotations(classes=['car'], only_not_parked=False)
 
     if save_path:
         writer = imageio.get_writer(os.path.join(save_path, f'task21.gif'), fps=10)
@@ -117,7 +149,7 @@ def task2_1(save_path=None, debug=0):
     y_pred = []
     tracks = []
     max_track = 0
-    for frame in trange(217, video_length, desc='evaluating frames'):
+    for frame in trange(300, video_length, desc='evaluating frames'):
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
         ret, img = cap.read()
 
@@ -131,13 +163,14 @@ def task2_1(save_path=None, debug=0):
             if debug >= 1 or save_path:
                 cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), track.color, 2)
                 cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), track.color, -2)
-                cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 2)
+                cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
 
         y_pred.append(frame_detections)
         y_true.append(gt.get(frame, []))
 
         if save_path:
             writer.append_data(cv2.resize(img, (600, 350)))
+
         elif debug >= 1:
             cv2.imshow('result', cv2.resize(img, (900, 600)))
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -226,5 +259,6 @@ def find_closest_bb(bb, bb_list):
     return best_bb
 
 if __name__ == '__main__':
-    #task1_1(model_name='mask', start=0, length=1)
-    task2_2(debug=0)
+    task1_1(architecture='maskrcnn', start=0, length=1, track_flag=True)
+    # task2_2(debug=0)
+    # task2_1(save_path='results/week3/', debug=0)
