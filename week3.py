@@ -1,27 +1,32 @@
 import os
-import numpy as np
-import imageio
-import cv2
-from torchvision.models import detection
-from torchvision.transforms import transforms
-import torch
 import time
+
+import numpy as np
+import cv2
+import imageio
 from tqdm import trange
 
+import torch
+from torchvision.models import detection
+from torchvision.transforms import transforms
 
-from src.evaluation.intersection_over_union import bb_intersecion_over_union
+from src.detection.finetuning import get_data_loaders, get_model, train, evaluate
+from src.tracking.tracking import update_tracks_by_overlap
+from src.tracking.sort import Sort
 from src.evaluation.average_precision import mean_average_precision
+from src.evaluation.intersection_over_union import find_closest_bb
 from src.evaluation.idf1 import MOTAcumulator
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
-from src.tracking.tracking import update_tracks_by_overlap
 from src.utils.detection import Detection
 from src.utils.plotutils import video_iou_plot
-from src.tracking.sort import Sort
-from utils.non_maximum_supression import get_nms
+from src.utils.non_maximum_supression import get_nms
 
 
 def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0, visualize=False, track_flag=False):
-    ''' Object detection: Off-the-shelf '''
+    """
+    Object detection: off-the-shelf
+    """
+
     tensor = transforms.ToTensor()
 
     if architecture.lower() == 'fasterrcnn':
@@ -50,7 +55,6 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
     detections = {}
     y_true, y_pred = [], []
 
-
     if track_flag:
         tracks = []
         max_track = 0
@@ -67,10 +71,10 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
 
             x = [tensor(img).to(device)]
             preds = model(x)[0]
-            print(f"Inference time per frame: {round(time.time()-start_t, 2)}")
+            print(f'Inference time per frame: {round(time.time() - start_t, 2)}')
 
             # filter car predictions and confidences
-            joint_preds = list(zip(preds["labels"], preds["boxes"], preds["scores"]))
+            joint_preds = list(zip(preds['labels'], preds['boxes'], preds['scores']))
             car_det = list(filter(lambda x: x[0] == 3, joint_preds))
             # car_det = list(filter(lambda x: x[2] > 0.70, car_det))
             car_det = get_nms(car_det, 0.7)
@@ -79,13 +83,13 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
             detections[frame] = []
             for det in car_det:
                 detections[frame].append(Detection(frame=frame,
-                                                    id=None,
-                                                    label='car',
-                                                    xtl=float(det[1][0]),
-                                                    ytl=float(det[1][1]),
-                                                    xbr=float(det[1][2]),
-                                                    ybr=float(det[1][3]),
-                                                    score=det[2]))
+                                                   id=None,
+                                                   label='car',
+                                                   xtl=float(det[1][0]),
+                                                   ytl=float(det[1][1]),
+                                                   xbr=float(det[1][2]),
+                                                   ybr=float(det[1][3]),
+                                                   score=det[2]))
 
             if track_flag:
                 tracks, frame_tracks, max_track = update_tracks_by_overlap(tracks, detections[frame], max_track)
@@ -116,7 +120,8 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 
-        video_iou_plot(gt, detections, video_path='data/AICity_data/train/S03/c010/vdo.avi', title=f'{architecture} detections',
+        video_iou_plot(gt, detections, video_path='data/AICity_data/train/S03/c010/vdo.avi',
+                       title=f'{architecture} detections',
                        save_path=save_path)
 
     cv2.destroyAllWindows()
@@ -124,15 +129,28 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
         writer.close()
 
 
+def task1_2(finetune=True, architecture='maskrcnn'):
+    """
+    Object detection: fine-tuning
+    """
 
-def task1_2():
-    '''Object detection: Fine-tune to your data'''
-    return
+    np.random.seed(42)
+
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    train_loader, test_loader = get_data_loaders(root='data')
+    model = get_model(architecture=architecture, finetune=finetune, num_classes=len(train_loader.dataset.classes))
+    model.to(device)
+
+    if finetune:
+        train(model, train_loader, test_loader, device)
+    else:
+        evaluate(model, test_loader, device)
+
 
 def task2_1(save_path=None, debug=0):
-    '''Object tracking
-     2.1. Tracking by overlap
-    '''
+    """
+    Object tracking: tracking by overlap
+    """
 
     cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
     video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) * 0.1)
@@ -156,7 +174,7 @@ def task2_1(save_path=None, debug=0):
         new_detections = annotations.get(frame, [])
         tracks, frame_tracks, max_track = update_tracks_by_overlap(tracks, new_detections, max_track)
 
-        frame_detections=[]
+        frame_detections = []
         for track in frame_tracks:
             det = track.last_detection()
             frame_detections.append(det)
@@ -183,10 +201,11 @@ def task2_1(save_path=None, debug=0):
     ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
     print(f'AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
 
+
 def task2_2(save_path=None, debug=0):
-    '''Object tracking
-     2.2. Tracking with a Kalman filter
-    '''
+    """
+    Object tracking: tracking with a Kalman filter
+    """
 
     cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
     video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -210,12 +229,14 @@ def task2_2(save_path=None, debug=0):
 
         detections_on_frame = annotations.get(frame, [])
 
-        detections_formatted = np.array([[det.xtl, det.ytl, det.xbr, det.ybr, det.score] for det in detections_on_frame])
+        detections_formatted = np.array(
+            [[det.xtl, det.ytl, det.xbr, det.ybr, det.score] for det in detections_on_frame])
         frame_tracks = kalman_tracker.update(detections_formatted)
 
         frame_detections = []
         for track_det in frame_tracks:
-            det = Detection(frame, int(track_det[4]), 'car', track_det[0], track_det[1], track_det[2], track_det[3], find_closest_bb(track_det[:4], detections_on_frame).score)
+            det = Detection(frame, int(track_det[4]), 'car', track_det[0], track_det[1], track_det[2], track_det[3],
+                            find_closest_bb(track_det[:4], detections_on_frame).score)
             frame_detections.append(det)
             if debug >= 1 or save_path:
                 cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 255, 0), 2)
@@ -246,19 +267,9 @@ def task2_2(save_path=None, debug=0):
     print('\nAdditional metrics:')
     print(accumulator.compute())
 
-def find_closest_bb(bb, bb_list):
-    ''' Returns the bounding box in bb_list closest to bb '''
-    max_iou = 0
-    best_bb = bb_list[0]
-    for b in bb_list:
-        iou = bb_intersecion_over_union(bb, [b.xtl, b.ytl, b.xbr, b.ybr])
-        # print('\t',bb,[b.xtl, b.ytl, b.xbr, b.ybr],iou)
-        if iou > max_iou:
-            max_iou = iou
-            best_bb = b
-    return best_bb
 
 if __name__ == '__main__':
-    task1_1(architecture='maskrcnn', start=0, length=1, track_flag=True)
+    # task1_1(architecture='maskrcnn', start=0, length=1, track_flag=True)
+    task1_2(finetune=True, architecture='maskrcnn')
     # task2_2(debug=0)
     # task2_1(save_path='results/week3/', debug=0)
