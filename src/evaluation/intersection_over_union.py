@@ -72,19 +72,3 @@ def mean_intersection_over_union(boxes1, boxes2):
     overlaps = vec_intersecion_over_union(boxes1, boxes2)
     # for each gt (rows) select the max overlap with any detection (columns)
     return np.mean(np.max(overlaps, axis=1))
-
-
-def find_closest_bb(bb, bb_list):
-    """
-    Returns the bounding box in bb_list closest to bb
-    """
-
-    max_iou = 0
-    best_bb = bb_list[0]
-    for b in bb_list:
-        iou = bb_intersecion_over_union(bb, [b.xtl, b.ytl, b.xbr, b.ybr])
-        # print('\t',bb,[b.xtl, b.ytl, b.xbr, b.ybr],iou)
-        if iou > max_iou:
-            max_iou = iou
-            best_bb = b
-    return best_bb

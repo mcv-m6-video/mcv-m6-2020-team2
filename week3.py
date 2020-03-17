@@ -14,7 +14,6 @@ from src.detection.finetuning import get_data_loaders, get_model, train, evaluat
 from src.tracking.tracking import update_tracks_by_overlap
 from src.tracking.sort import Sort
 from src.evaluation.average_precision import mean_average_precision
-from src.evaluation.intersection_over_union import find_closest_bb
 from src.evaluation.idf1 import MOTAcumulator
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
 from src.utils.detection import Detection
@@ -197,74 +196,42 @@ def task2_1(save_path=None, debug=0):
     print(accumulator.compute())
 
 
-def task2_2(save_path=None, debug=0):
+def task2_2():
     """
     Object tracking: tracking with a Kalman filter
     """
 
-    cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
-    video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
-    gt = reader.get_annotations(classes=['car'], only_not_parked=False)
-    reader = AICityChallengeAnnotationReader(path=f'data/AICity_data/train/S03/c010/det/det_yolo3.txt')
-    annotations = reader.get_annotations(classes=['car'], only_not_parked=False)
+    gt = reader.get_annotations(classes=['car'])
+    reader = AICityChallengeAnnotationReader(path=f'data/AICity_data/train/S03/c010/det/det_mask_rcnn.txt')
+    dets = reader.get_annotations(classes=['car'])
 
-    if save_path:
-        writer = imageio.get_writer(os.path.join(save_path, f'task22.gif'), fps=10)
+    tracker = Sort()
 
-    kalman_tracker = Sort()
-    accumulator = MOTAcumulator()
     y_true = []
     y_pred = []
     y_pred_kalman = []
-    for frame in trange(217, video_length, desc='evaluating frames'):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-        ret, img = cap.read()
+    for frame in trange(len(gt)):
+        detections = dets.get(frame, [])
 
-        detections_on_frame = annotations.get(frame, [])
+        new_detections = tracker.update(np.array([[d.xtl, d.ytl, d.xbr, d.ybr, d.score] for d in detections]))
+        new_detections = [Detection(frame, int(d[-1]), 'car', *d[:4]) for d in new_detections]
 
-        detections_formatted = np.array(
-            [[det.xtl, det.ytl, det.xbr, det.ybr, det.score] for det in detections_on_frame])
-        frame_tracks = kalman_tracker.update(detections_formatted)
+        for d in detections:
+            d.score = None
 
-        frame_detections = []
-        for track_det in frame_tracks:
-            det = Detection(frame, int(track_det[4]), 'car', track_det[0], track_det[1], track_det[2], track_det[3],
-                            find_closest_bb(track_det[:4], detections_on_frame).score)
-            frame_detections.append(det)
-            if debug >= 1 or save_path:
-                cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 255, 0), 2)
-                cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), (0, 255, 0), -2)
-                cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 2)
-
-        y_pred_kalman.append(frame_detections)
-        y_pred.append(detections_on_frame)
         y_true.append(gt.get(frame, []))
-
-        accumulator.update(y_true[-1], y_pred_kalman[-1])
-
-        if save_path:
-            writer.append_data(cv2.resize(img, (600, 350)))
-        elif debug >= 1:
-            cv2.imshow('result', cv2.resize(img, (900, 600)))
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-    cv2.destroyAllWindows()
-    if save_path:
-        writer.close()
+        y_pred.append(detections)
+        y_pred_kalman.append(new_detections)
 
     ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
-    print(f'Original AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+    print(f'(No filter) AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
     ap, prec, rec = mean_average_precision(y_true, y_pred_kalman, classes=['car'])
-    print(f'After Kalman filter AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
-    print('\nAdditional metrics:')
-    print(accumulator.compute())
+    print(f'(Kalman filter) AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
 
 
 if __name__ == '__main__':
-    task1_1(architecture='maskrcnn', start=0, length=2)
-    #task1_2(finetune=True, architecture='maskrcnn')
-    # task2_2(debug=0)
+    # task1_1(architecture='maskrcnn', start=0, length=2)
+    # task1_2(finetune=True, architecture='maskrcnn')
     # task2_1(save_path='results/week3/', debug=0)
+    task2_2()
