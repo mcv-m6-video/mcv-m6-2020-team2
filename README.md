@@ -49,4 +49,16 @@ For this, we use grayscale videos as well as colour information from different c
 
 [Report](https://docs.google.com/presentation/d/1u4jSk3mfiY-k0kEzO-j3TatIRomean1OOWEv-l1FgTk/edit#slide=id.g613c54889_097)
 
+## Week 3
 
+The goal of this week is to perform object detection for car and from those detections track each one of the cars independently.
+
+* Object Detection:
+    * Mask-RCNN and Faster-RCNN are used "off-the-shelf", as they are trained with the COCO dataset (which provides with the necessary class **car**)
+    * Fine tuned Mask-RCNN to our dataset.
+    
+* Tracking
+    * By overlap, we consider the IoU between boxes in consecutives frames in order to assign a unique id to a car 
+    * Using the Kalman filter
+
+[Report](https://docs.google.com/presentation/d/1wegcV2f-nD0tWDgEJ-S8RpuJD-X4PL5EHW8cjQ3wiMo/edit#slide=id.p)

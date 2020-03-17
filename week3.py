@@ -97,10 +97,6 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
 
                 detections[frame].append(det_obj)
 
-                cv2.imshow('image', img)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-                
                 if save_detection:
                     detection_file.write(f"{frame},-1,{det_obj.xtl},{det_obj.ytl},{det_obj.width},{det_obj.height},{det_obj.score},-1,-1,-1\n")
 
@@ -154,6 +150,7 @@ def task2_1(save_path=None, debug=0):
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
     gt = reader.get_annotations(classes=['car'], only_not_parked=False)
     reader = AICityChallengeAnnotationReader(path=f'data/AICity_data/train/S03/c010/det/det_yolo3.txt')
+
     annotations = reader.get_annotations(classes=['car'], only_not_parked=False)
 
     if save_path:
@@ -259,7 +256,7 @@ def task2_2(debug=False):
 
 
 if __name__ == '__main__':
-    # task1_1(architecture='maskrcnn', start=0, length=2)
+    #task1_1(architecture='maskrcnn', start=0, length=2)
     # task1_2(finetune=True, architecture='maskrcnn', save_path='results/week3/det_maskrcnn_finetuning.txt')
 
     #task2_1(save_path='results/week3/', debug=0)
