@@ -22,7 +22,7 @@ from src.utils.plotutils import video_iou_plot
 from src.utils.non_maximum_supression import get_nms
 
 
-def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0, visualize=False, track_flag=False):
+def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0, visualize=False, save_detection='detection_results/'):
     """
     Object detection: off-the-shelf
     """
@@ -55,10 +55,11 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
     detections = {}
     y_true, y_pred = [], []
 
-    if track_flag:
-        tracks = []
-        max_track = 0
-        writer = imageio.get_writer(os.path.join(save_path, 'task11.gif'), fps=10)
+    if save_detection:
+        path = os.path.join(save_detection, architecture)
+        if not os.path.exists(path):
+            os.makedirs(path)
+        detection_file  = open(f'{path}/{architecture.lower()}.txt', 'w')
 
     with torch.no_grad():
         for frame in range(start, length):
@@ -90,26 +91,10 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
                                                    xbr=float(det[1][2]),
                                                    ybr=float(det[1][3]),
                                                    score=det[2]))
+                if save_detection:
+                    detection_file.write(f"{frame} -1 {float(det[1][0])} {float(det[1][1])} {float(det[1][2])} {float(det[1][3])} {det[2]} -1 -1 -1\n")
 
-            if track_flag:
-                tracks, frame_tracks, max_track = update_tracks_by_overlap(tracks, detections[frame], max_track)
-
-                frame_detections = []
-                for track in frame_tracks:
-                    det = track.last_detection()
-                    frame_detections.append(det)
-
-                    cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), track.color, 2)
-                    cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), track.color, -2)
-                    cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1,
-                                (0, 0, 0), 2)
-
-                writer.append_data(cv2.resize(img, (600, 350)))
-
-                y_pred.append(frame_detections)
-            else:
-                y_pred.append(detections[frame])
-
+            y_pred.append(detections[frame])
             y_true.append(gt.get(frame, []))
 
     ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
@@ -125,8 +110,9 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
                        save_path=save_path)
 
     cv2.destroyAllWindows()
-    if track_flag:
-        writer.close()
+
+    if save_detection:
+        detection_file.close()
 
 
 def task1_2(finetune=True, architecture='maskrcnn'):
@@ -278,7 +264,7 @@ def task2_2(save_path=None, debug=0):
 
 
 if __name__ == '__main__':
-    # task1_1(architecture='maskrcnn', start=0, length=1, track_flag=True)
-    task1_2(finetune=True, architecture='maskrcnn')
+    task1_1(architecture='maskrcnn', start=0, length=2)
+    #task1_2(finetune=True, architecture='maskrcnn')
     # task2_2(debug=0)
     # task2_1(save_path='results/week3/', debug=0)
