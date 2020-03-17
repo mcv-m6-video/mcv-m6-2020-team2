@@ -28,32 +28,31 @@ def update_tracks_by_overlap(tracks, new_detections, max_track):
 
     return tracks, frame_tracks, max_track
 
-def refine_bbox(last_detections, new_detection):
+def refine_bbox(last_detections, new_detection, k=0.5):
     # No refinement for the first two frames
     if len(last_detections) < 2:
         return new_detection
 
-    # Compute centroids of last two detections and new detection
-    last_detections_c = np.array([((i.xtl+i.xbr)/2, (i.ytl+i.ybr)/2) for i in last_detections])
-    new_detection_c = np.array([(new_detection.xtl+new_detection.xbr)/2, (new_detection.ytl+new_detection.ybr)/2])
+    # Predict coordinates of new detection from last two detections
+    pred_detection_xtl = 2 * last_detections[1].xtl - last_detections[0].xtl
+    pred_detection_ytl = 2 * last_detections[1].ytl - last_detections[0].ytl
+    pred_detection_xbr = 2 * last_detections[1].xbr - last_detections[0].xbr
+    pred_detection_ybr = 2 * last_detections[1].ybr - last_detections[0].ybr
 
-    # Predict centroid of new detection from last two detections
-    pred_detection_c = 2 * last_detections_c[1] - last_detections_c[0]
+    # Compute average of predicted coordinates and detected coordinates
+    refined_xtl = new_detection.xtl * k + pred_detection_xtl * (1 - k)
+    refined_ytl = new_detection.ytl * k + pred_detection_ytl * (1 - k)
+    refined_xbr = new_detection.xbr * k + pred_detection_xbr * (1 - k)
+    refined_ybr = new_detection.ybr * k + pred_detection_ybr * (1 - k)
 
-    # Compute average of predicted centroid and detected centroid
-    refined_c = (new_detection_c + pred_detection_c) / 2
-
-    # Compute refined detection
-    w = new_detection.xbr - new_detection.xtl
-    h = new_detection.ybr - new_detection.ytl
-
+    # Get refined detection
     refined_detection = Detection(frame=new_detection.frame,
                                   id=new_detection.id,
                                   label=new_detection.label,
-                                  xtl=refined_c[0] - w/2,
-                                  ytl=refined_c[1] - h/2,
-                                  xbr=refined_c[0] + w/2,
-                                  ybr=refined_c[1] + h/2,
+                                  xtl=refined_xtl,
+                                  ytl=refined_ytl,
+                                  xbr=refined_xbr,
+                                  ybr=refined_ybr,
                                   score=new_detection.score)
 
     return refined_detection
