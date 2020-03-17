@@ -23,5 +23,9 @@ class Detection:
     def height(self):
         return abs(self.ytl - self.ybr)
 
+    @property
+    def center(self):
+        return (int((self.xtl + self.xbr) / 2), int((self.ybr + self.ytl) / 2))
+
     def __str__(self):
         return f'frame={self.frame}, id={self.id}, label={self.label}, bbox={self.bbox}, confidence={self.score}, parked={self.parked}'

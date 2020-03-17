@@ -180,6 +180,8 @@ def task2_1(save_path=None, debug=0):
                 cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), track.color, 2)
                 cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), track.color, -2)
                 cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
+                for dd in track.track:
+                    cv2.circle(img, dd.center, 5, track.color, -1)
 
         y_pred_refined.append(frame_detections)
         y_pred.append(detections_on_frame)
