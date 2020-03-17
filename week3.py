@@ -1,5 +1,6 @@
 import os
 import time
+from collections import defaultdict
 
 import numpy as np
 import cv2
@@ -196,7 +197,7 @@ def task2_1(save_path=None, debug=0):
     print(accumulator.compute())
 
 
-def task2_2():
+def task2_2(debug=False):
     """
     Object tracking: tracking with a Kalman filter
     """
@@ -206,7 +207,10 @@ def task2_2():
     reader = AICityChallengeAnnotationReader(path=f'data/AICity_data/train/S03/c010/det/det_mask_rcnn.txt')
     dets = reader.get_annotations(classes=['car'])
 
+    cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
+
     tracker = Sort()
+    tracks = defaultdict(list)
 
     y_true = []
     y_pred = []
@@ -224,6 +228,19 @@ def task2_2():
         y_pred.append(detections)
         y_pred_kalman.append(new_detections)
 
+        if debug:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
+            ret, img = cap.read()
+            for d in new_detections:
+                tracks[d.id].append(d.bbox)
+                np.random.seed(d.id)
+                color = tuple(np.random.randint(0, 256, 3).tolist())
+                for dd in tracks[d.id]:
+                    cv2.circle(img, (int((dd[0]+dd[2])/2), int((dd[1]+dd[3])/2)), 3, color, -1)
+            cv2.imshow('image', img)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
     ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
     print(f'(No filter) AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
     ap, prec, rec = mean_average_precision(y_true, y_pred_kalman, classes=['car'])
@@ -234,4 +251,4 @@ if __name__ == '__main__':
     # task1_1(architecture='maskrcnn', start=0, length=2)
     # task1_2(finetune=True, architecture='maskrcnn')
     # task2_1(save_path='results/week3/', debug=0)
-    task2_2()
+    task2_2(debug=True)
