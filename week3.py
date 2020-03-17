@@ -118,7 +118,7 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
         detection_file.close()
 
 
-def task1_2(finetune=True, architecture='maskrcnn'):
+def task1_2(finetune=True, architecture='maskrcnn', save_path=None):
     """
     Object detection: fine-tuning
     """
@@ -131,9 +131,9 @@ def task1_2(finetune=True, architecture='maskrcnn'):
     model.to(device)
 
     if finetune:
-        train(model, train_loader, test_loader, device)
+        train(model, train_loader, test_loader, device, save_path=save_path)
     else:
-        evaluate(model, test_loader, device)
+        evaluate(model, test_loader, device, save_path=save_path)
 
 
 def task2_1(save_path=None, debug=0):
@@ -207,7 +207,7 @@ def task2_2(debug=False):
 
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
     gt = reader.get_annotations(classes=['car'])
-    reader = AICityChallengeAnnotationReader(path=f'data/AICity_data/train/S03/c010/det/det_mask_rcnn.txt')
+    reader = AICityChallengeAnnotationReader(path=f'results/week3/det_maskrcnn_finetuning.txt')
     dets = reader.get_annotations(classes=['car'])
 
     cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
@@ -218,10 +218,10 @@ def task2_2(debug=False):
     y_true = []
     y_pred = []
     acc = MOTAcumulator()
-    for frame in trange(len(gt)):
+    for frame in dets.keys():
         detections = dets.get(frame, [])
 
-        new_detections = tracker.update(np.array([[d.xtl, d.ytl, d.xbr, d.ybr, d.score] for d in detections]))
+        new_detections = tracker.update(np.array([[*d.bbox, d.score] for d in detections]))
         new_detections = [Detection(frame, int(d[-1]), 'car', *d[:4]) for d in new_detections]
 
         y_true.append(gt.get(frame, []))
@@ -249,6 +249,6 @@ def task2_2(debug=False):
 
 if __name__ == '__main__':
     # task1_1(architecture='maskrcnn', start=0, length=2)
-    # task1_2(finetune=True, architecture='maskrcnn')
+    # task1_2(finetune=True, architecture='maskrcnn', save_path='results/week3/det_maskrcnn_finetuning.txt')
     # task2_1(save_path='results/week3/', debug=0)
-    task2_2(debug=False)
+    task2_2(debug=True)

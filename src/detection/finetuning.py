@@ -107,7 +107,7 @@ def get_model(architecture='maskrcnn', finetune=True, num_classes=4):
     return model
 
 
-def train(model, train_loader, test_loader, device, num_epochs=1):
+def train(model, train_loader, test_loader, device, num_epochs=1, save_path=None):
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
@@ -115,7 +115,7 @@ def train(model, train_loader, test_loader, device, num_epochs=1):
     for epoch in range(num_epochs):
         train_one_epoch(model, optimizer, train_loader, device, epoch, print_freq=10)
         lr_scheduler.step()
-        evaluate(model, test_loader, device)
+        evaluate(model, test_loader, device, save_path)
 
 
 if __name__ == '__main__':
