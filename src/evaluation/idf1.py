@@ -11,8 +11,8 @@ class MOTAcumulator:
         true_ids = [i.id for i in true]
         pred_ids = [i.id for i in pred]
 
-        true_c = np.array([(int((i.xtl+i.xbr)/2), int((i.ytl+i.ybr)/2)) for i in true])
-        pred_c = np.array([(int((i.xtl+i.xbr)/2), int((i.ytl+i.ybr)/2)) for i in pred])
+        true_c = np.array([((i.xtl+i.xbr)/2, (i.ytl+i.ybr)/2) for i in true])
+        pred_c = np.array([((i.xtl+i.xbr)/2, (i.ytl+i.ybr)/2) for i in pred])
 
         if true_ids and pred_ids:
             distances = [[np.sqrt(np.sum((i-j)**2)) for j in pred_c] for i in true_c]
