@@ -21,6 +21,9 @@ from src.utils.detection import Detection
 from src.utils.plotutils import video_iou_plot
 from src.utils.non_maximum_supression import get_nms
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 
 def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0, visualize=False, save_detection='detection_results/'):
     """
@@ -214,19 +217,17 @@ def task2_2(debug=False):
 
     y_true = []
     y_pred = []
-    y_pred_kalman = []
+    acc = MOTAcumulator()
     for frame in trange(len(gt)):
         detections = dets.get(frame, [])
 
         new_detections = tracker.update(np.array([[d.xtl, d.ytl, d.xbr, d.ybr, d.score] for d in detections]))
         new_detections = [Detection(frame, int(d[-1]), 'car', *d[:4]) for d in new_detections]
 
-        for d in detections:
-            d.score = None
-
         y_true.append(gt.get(frame, []))
-        y_pred.append(detections)
-        y_pred_kalman.append(new_detections)
+        y_pred.append(new_detections)
+
+        acc.update(y_true[-1], y_pred[-1])
 
         if debug:
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
@@ -242,13 +243,12 @@ def task2_2(debug=False):
                 break
 
     ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
-    print(f'(No filter) AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
-    ap, prec, rec = mean_average_precision(y_true, y_pred_kalman, classes=['car'])
-    print(f'(Kalman filter) AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+    summary = acc.compute()
+    print(f"AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}, IDF1: {summary['idf1']['acc']:.4f}")
 
 
 if __name__ == '__main__':
     # task1_1(architecture='maskrcnn', start=0, length=2)
     # task1_2(finetune=True, architecture='maskrcnn')
     # task2_1(save_path='results/week3/', debug=0)
-    task2_2(debug=True)
+    task2_2(debug=False)

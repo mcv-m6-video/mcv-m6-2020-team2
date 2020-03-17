@@ -1,5 +1,6 @@
-import motmetrics as mm
 import numpy as np
+import motmetrics as mm
+from sklearn.metrics.pairwise import pairwise_distances
 
 
 class MOTAcumulator:
@@ -7,28 +8,12 @@ class MOTAcumulator:
     def __init__(self):
         self.acc = mm.MOTAccumulator(auto_id=True)
 
-    def update(self, true, pred):
-        true_ids = [i.id for i in true]
-        pred_ids = [i.id for i in pred]
-
-        true_c = np.array([((i.xtl+i.xbr)/2, (i.ytl+i.ybr)/2) for i in true])
-        pred_c = np.array([((i.xtl+i.xbr)/2, (i.ytl+i.ybr)/2) for i in pred])
-
-        if true_ids and pred_ids:
-            distances = [[np.sqrt(np.sum((i-j)**2)) for j in pred_c] for i in true_c]
-            self.acc.update(
-                true_ids,
-                pred_ids,
-                distances
-                )
-        else:
-            self.acc.update(
-                true_ids,
-                pred_ids,
-                []
-                )
+    def update(self, y_true, y_pred):
+        X = np.array([[(d.xtl+d.xbr)/2, (d.ytl+d.ybr)/2] for d in y_true])
+        Y = np.array([[(d.xtl+d.xbr)/2, (d.ytl+d.ybr)/2] for d in y_pred])
+        dists = pairwise_distances(X, Y, metric='euclidean')
+        self.acc.update([i.id for i in y_true], [i.id for i in y_pred], dists)
 
     def compute(self):
         mh = mm.metrics.create()
-        summary = mh.compute(self.acc, metrics=['idf1'], name='acc')
-        return summary
+        return mh.compute(self.acc, metrics=['idf1'], name='acc')
