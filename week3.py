@@ -86,16 +86,23 @@ def task1_1(architecture, start=0, length=None, save_path='results/week3', gpu=0
             # add detections
             detections[frame] = []
             for det in car_det:
-                detections[frame].append(Detection(frame=frame,
-                                                   id=None,
-                                                   label='car',
-                                                   xtl=float(det[1][0]),
-                                                   ytl=float(det[1][1]),
-                                                   xbr=float(det[1][2]),
-                                                   ybr=float(det[1][3]),
-                                                   score=det[2]))
+                det_obj = Detection(frame=frame,
+                                   id=None,
+                                   label='car',
+                                   xtl=float(det[1][0]),
+                                   ytl=float(det[1][1]),
+                                   xbr=float(det[1][2]),
+                                   ybr=float(det[1][3]),
+                                   score=det[2])
+
+                detections[frame].append(det_obj)
+
+                cv2.imshow('image', img)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+                
                 if save_detection:
-                    detection_file.write(f"{frame} -1 {float(det[1][0])} {float(det[1][1])} {float(det[1][2])} {float(det[1][3])} {det[2]} -1 -1 -1\n")
+                    detection_file.write(f"{frame},-1,{det_obj.xtl},{det_obj.ytl},{det_obj.width},{det_obj.height},{det_obj.score},-1,-1,-1\n")
 
             y_pred.append(detections[frame])
             y_true.append(gt.get(frame, []))
@@ -219,6 +226,7 @@ def task2_2(debug=False):
     y_pred = []
     acc = MOTAcumulator()
     for frame in dets.keys():
+
         detections = dets.get(frame, [])
 
         new_detections = tracker.update(np.array([[*d.bbox, d.score] for d in detections]))
@@ -238,7 +246,8 @@ def task2_2(debug=False):
                 color = tuple(np.random.randint(0, 256, 3).tolist())
                 for dd in tracks[d.id]:
                     cv2.circle(img, (int((dd[0]+dd[2])/2), int((dd[1]+dd[3])/2)), 3, color, -1)
-            cv2.imshow('image', img)
+
+            cv2.imshow('image', cv2.resize(img, (900, 600)))
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
@@ -250,5 +259,6 @@ def task2_2(debug=False):
 if __name__ == '__main__':
     # task1_1(architecture='maskrcnn', start=0, length=2)
     # task1_2(finetune=True, architecture='maskrcnn', save_path='results/week3/det_maskrcnn_finetuning.txt')
-    # task2_1(save_path='results/week3/', debug=0)
+
+    #task2_1(save_path='results/week3/', debug=0)
     task2_2(debug=True)

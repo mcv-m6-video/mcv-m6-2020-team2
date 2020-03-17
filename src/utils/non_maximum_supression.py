@@ -1,9 +1,9 @@
 import numpy as np
 
 def get_nms(detections, overlapThresh):
-    boxes =[box[1].numpy() for box in detections]
+    boxes =[box[1].cpu().numpy() for box in detections]
     picked_boxes = non_max_suppression_fast(np.array(boxes), overlapThresh )
-    detections_int = [ (det[0].item(), list(map(int, det[1].numpy())), det[2].item()) for det in detections]
+    detections_int = [ (det[0].cpu().item(), list(map(int, det[1].cpu().numpy())), det[2].cpu().item()) for det in detections]
     picked_detections = list(filter(lambda x: x[1] in picked_boxes, detections_int))
 
     return picked_detections

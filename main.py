@@ -43,9 +43,9 @@ elif args.week == 3:
     elif args.task == 1_2:
         week3.task1_2()
     elif args.task == 2_1:
-        week3.task2_1(path_plots)
+        week3.task2_1(save_path=None, debug=0)
     elif args.task == 2_2:
-        week3.task2_2(path_plots)
+        week3.task2_2(debug=0)
     else:
         raise ValueError(f"Bad input task {args.task}. Options are [1_1, 1_2, 2_1, 2_2]")
 
