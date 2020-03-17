@@ -197,7 +197,7 @@ def task2_1(save_path=None, debug=0):
     ap, prec, rec = mean_average_precision(y_true, y_pred_refined, classes=['car'])
     print(f'After refinement AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
     print('\nAdditional metrics:')
-    print(accumulator.compute())
+    print(accumulator.get_idf1())
 
 
 def task2_2(debug=False):
@@ -243,8 +243,8 @@ def task2_2(debug=False):
                 break
 
     ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
-    summary = acc.compute()
-    print(f"AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}, IDF1: {summary['idf1']['acc']:.4f}")
+    idf1 = acc.get_idf1()
+    print(f"AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}, IDF1: {idf1:.4f}")
 
 
 if __name__ == '__main__':

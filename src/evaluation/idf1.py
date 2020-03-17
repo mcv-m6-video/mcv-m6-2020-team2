@@ -14,6 +14,7 @@ class MOTAcumulator:
         dists = pairwise_distances(X, Y, metric='euclidean')
         self.acc.update([i.id for i in y_true], [i.id for i in y_pred], dists)
 
-    def compute(self):
+    def get_idf1(self):
         mh = mm.metrics.create()
-        return mh.compute(self.acc, metrics=['idf1'], name='acc')
+        summary = mh.compute(self.acc, metrics=['idf1'], name='acc')
+        return summary['idf1']['acc']
