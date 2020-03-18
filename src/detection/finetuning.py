@@ -70,15 +70,16 @@ def get_data_loaders(root):
                             transform=transform)
 
     # split the dataset in train and test set
-    indices = np.random.permutation(len(dataset))
-    split = int(len(dataset) * 0.75)
+    #indices = np.random.permutation(len(dataset))
+    indices = range(len(dataset))
+    split = int(len(dataset) * 0.25)
     train_sampler = torch.utils.data.SubsetRandomSampler(indices[:split])
     test_sampler = torch.utils.data.SubsetRandomSampler(indices[split:])
 
     # define training and validation data loaders
     train_loader = torch.utils.data.DataLoader(dataset, batch_size=8, sampler=train_sampler, num_workers=1,
                                                collate_fn=utils.collate_fn)
-    test_loader = torch.utils.data.DataLoader(dataset, batch_size=1, sampler=test_sampler, num_workers=1,
+    test_loader = torch.utils.data.DataLoader(dataset, batch_size=8, sampler=test_sampler, num_workers=1,
                                               collate_fn=utils.collate_fn)
 
     return train_loader, test_loader

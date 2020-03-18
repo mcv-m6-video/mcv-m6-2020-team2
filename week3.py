@@ -206,14 +206,14 @@ def task2_1(save_path=None, debug=0):
     print(accumulator.get_idf1())
 
 
-def task2_2(debug=False):
+def task2_2(debug=False, det_path='data/AICity_data/train/S03/c010/det/det_mask_rcnn.txt'):
     """
     Object tracking: tracking with a Kalman filter
     """
 
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
     gt = reader.get_annotations(classes=['car'])
-    reader = AICityChallengeAnnotationReader(path=f'results/week3/det_maskrcnn_finetuning.txt')
+    reader = AICityChallengeAnnotationReader(path=det_path)
     dets = reader.get_annotations(classes=['car'])
 
     cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
@@ -225,7 +225,6 @@ def task2_2(debug=False):
     y_pred = []
     acc = MOTAcumulator()
     for frame in dets.keys():
-
         detections = dets.get(frame, [])
 
         new_detections = tracker.update(np.array([[*d.bbox, d.score] for d in detections]))
@@ -244,11 +243,14 @@ def task2_2(debug=False):
                 np.random.seed(d.id)
                 color = tuple(np.random.randint(0, 256, 3).tolist())
                 for dd in tracks[d.id]:
-                    cv2.circle(img, (int((dd[0]+dd[2])/2), int((dd[1]+dd[3])/2)), 3, color, -1)
+                    cv2.circle(img, (int((dd[0]+dd[2])/2), int((dd[1]+dd[3])/2)), 5, color, -1)
 
             cv2.imshow('image', cv2.resize(img, (900, 600)))
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+
+    cap.release()
+    cv2.destroyAllWindows()
 
     ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
     idf1 = acc.get_idf1()
@@ -256,8 +258,7 @@ def task2_2(debug=False):
 
 
 if __name__ == '__main__':
-    #task1_1(architecture='maskrcnn', start=0, length=2)
+    # task1_1(architecture='maskrcnn', start=0, length=2)
     # task1_2(finetune=True, architecture='maskrcnn', save_path='results/week3/det_maskrcnn_finetuning.txt')
-
-    #task2_1(save_path='results/week3/', debug=0)
-    task2_2(debug=True)
+    # task2_1(save_path='results/week3/', debug=0)
+    task2_2(debug=True, det_path='results/week3/det_maskrcnn_finetuning.txt')
