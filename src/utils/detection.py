@@ -24,6 +24,10 @@ class Detection:
         return abs(self.ytl - self.ybr)
 
     @property
+    def area(self):
+        return self.width * self.height
+
+    @property
     def center(self):
         return (int((self.xtl + self.xbr) / 2), int((self.ybr + self.ytl) / 2))
 

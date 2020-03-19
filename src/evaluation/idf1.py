@@ -16,5 +16,5 @@ class MOTAcumulator:
 
     def get_idf1(self):
         mh = mm.metrics.create()
-        summary = mh.compute(self.acc, metrics=['idf1'], name='acc')
-        return summary['idf1']['acc']
+        summary = mh.compute(self.acc, metrics=['idf1', 'idp', 'idr'], name='acc')
+        return summary['idf1']['acc'], summary['idp']['acc'], summary['idr']['acc']

@@ -82,7 +82,7 @@ def evaluate(model, data_loader, device, save_path=None):
             y_pred.append([Detection(frame, None, label, *box, score) for box, label, score in zip(output['boxes'], output['labels'], output['scores'])])
 
     evaluator_time = time.time()
-    map, _, _ = mean_average_precision(y_true, y_pred)
+    map, _, _ = mean_average_precision(y_true, y_pred, sort_method='score')
     evaluator_time = time.time() - evaluator_time
     metric_logger.update(map=map, evaluator_time=evaluator_time)
 

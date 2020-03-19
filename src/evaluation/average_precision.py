@@ -3,7 +3,7 @@ import numpy as np
 from src.evaluation.intersection_over_union import vec_intersecion_over_union
 
 
-def mean_average_precision(y_true, y_pred, classes=None):
+def mean_average_precision(y_true, y_pred, classes=None, sort_method=None):
     """
     Mean Average Precision across classes.
 
@@ -23,7 +23,7 @@ def mean_average_precision(y_true, y_pred, classes=None):
         # filter by class
         y_true_cls = [[det for det in boxlist if det.label == cls] for boxlist in y_true]
         y_pred_cls = [[det for det in boxlist if det.label == cls] for boxlist in y_pred]
-        ap, prec, rec = average_precision(y_true_cls, y_pred_cls)
+        ap, prec, rec = average_precision(y_true_cls, y_pred_cls, sort_method)
         precs.append(prec)
         recs.append(rec)
         aps.append(ap)
@@ -34,7 +34,7 @@ def mean_average_precision(y_true, y_pred, classes=None):
     return map, prec, rec
 
 
-def average_precision(y_true, y_pred):
+def average_precision(y_true, y_pred, sort_method=None):
     """
     Average Precision with or without confidence scores.
 
@@ -46,12 +46,15 @@ def average_precision(y_true, y_pred):
     y_pred = [(i, det) for i in range(len(y_pred)) for det in y_pred[i]]  # flatten
     if len(y_pred) == 0:
         return 0
-    else:
-        with_scores = y_pred[0][1].score is not None
 
-    if with_scores:
+    if sort_method == 'score':
         # sort by confidence
         sorted_ind = np.argsort([-det[1].score for det in y_pred])
+        y_pred_sorted = [y_pred[i] for i in sorted_ind]
+        ap, prec, rec = voc_ap(y_true, y_pred_sorted)
+    elif sort_method == 'area':
+        # sort by area
+        sorted_ind = np.argsort([-det[1].area for det in y_pred])
         y_pred_sorted = [y_pred[i] for i in sorted_ind]
         ap, prec, rec = voc_ap(y_true, y_pred_sorted)
     else:

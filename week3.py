@@ -139,19 +139,17 @@ def task1_2(finetune=True, architecture='maskrcnn', save_path=None):
         evaluate(model, test_loader, device, save_path=save_path)
 
 
-def task2_1(save_path=None, debug=0):
+def task2_1(debug=False, save_path=None, det_path='data/AICity_data/train/S03/c010/det/det_mask_rcnn.txt'):
     """
     Object tracking: tracking by overlap
     """
 
     cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
-    video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
-    gt = reader.get_annotations(classes=['car'], only_not_parked=False)
-    reader = AICityChallengeAnnotationReader(path=f'data/AICity_data/train/S03/c010/det/det_yolo3.txt')
-
-    annotations = reader.get_annotations(classes=['car'], only_not_parked=False)
+    gt = reader.get_annotations(classes=['car'])
+    reader = AICityChallengeAnnotationReader(path=det_path)
+    dets = reader.get_annotations(classes=['car'])
 
     if save_path:
         writer = imageio.get_writer(os.path.join(save_path, f'task21.gif'), fps=10)
@@ -162,18 +160,19 @@ def task2_1(save_path=None, debug=0):
     y_pred_refined = []
     tracks = []
     max_track = 0
-    for frame in trange(217, video_length, desc='evaluating frames'):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-        ret, img = cap.read()
+    for frame in dets.keys():
+        if debug or save_path:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
+            ret, img = cap.read()
 
-        detections_on_frame = annotations.get(frame, [])
+        detections_on_frame = dets.get(frame, [])
         tracks, frame_tracks, max_track = update_tracks_by_overlap(tracks, detections_on_frame, max_track)
 
         frame_detections = []
         for track in frame_tracks:
             det = track.last_detection()
             frame_detections.append(det)
-            if debug >= 1 or save_path:
+            if debug or save_path:
                 cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), track.color, 2)
                 cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), track.color, -2)
                 cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
@@ -189,7 +188,7 @@ def task2_1(save_path=None, debug=0):
         if save_path:
             writer.append_data(cv2.resize(img, (600, 350)))
 
-        elif debug >= 1:
+        elif debug:
             cv2.imshow('result', cv2.resize(img, (900, 600)))
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -198,9 +197,9 @@ def task2_1(save_path=None, debug=0):
     if save_path:
         writer.close()
 
-    ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
+    ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'], sort_method='score')
     print(f'Original AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
-    ap, prec, rec = mean_average_precision(y_true, y_pred_refined, classes=['car'])
+    ap, prec, rec = mean_average_precision(y_true, y_pred_refined, classes=['car'], sort_method='score')
     print(f'After refinement AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
     print('\nAdditional metrics:')
     print(accumulator.get_idf1())
@@ -253,12 +252,12 @@ def task2_2(debug=False, det_path='data/AICity_data/train/S03/c010/det/det_mask_
     cv2.destroyAllWindows()
 
     ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'])
-    idf1 = acc.get_idf1()
-    print(f"AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}, IDF1: {idf1:.4f}")
+    idf1, idp, idr = acc.get_idf1()
+    print(f"AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}, IDF1: {idf1:.4f}, IDP: {idp:.4f}, IDR: {idr:.4f}")
 
 
 if __name__ == '__main__':
     # task1_1(architecture='maskrcnn', start=0, length=2)
     # task1_2(finetune=True, architecture='maskrcnn', save_path='results/week3/det_maskrcnn_finetuning.txt')
-    # task2_1(save_path='results/week3/', debug=0)
-    task2_2(debug=True, det_path='results/week3/det_maskrcnn_finetuning.txt')
+    # task2_1(debug=False, det_path='results/week3/det_maskrcnn_finetuning.txt')
+    task2_2(debug=False, det_path='results/week3/det_maskrcnn_finetuning.txt')
