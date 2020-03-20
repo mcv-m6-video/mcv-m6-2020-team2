@@ -87,6 +87,29 @@ def optical_flow_arrow_plot(gray_frame: np.ndarray, flow_image: np.ndarray, type
     plt.savefig(os.path.join(path, f'flow_results_{type}-{frame_id}.png')) if path else plt.show()
     plt.close()
 
+def dense_optical_flow_plot(flow_fied, sequence_id="", homogenous=True, save_path=None):
+    hsv = np.zeros((flow_fied.shape[0], flow_fied.shape[1], 3), dtype=np.uint8)
+
+    magnitude, angle = cv2.cartToPolar(flow_fied[..., 0], flow_fied[..., 1])
+
+    hsv[..., 0] = angle * 180 / np.pi / 2
+    hsv[..., 1] = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
+    hsv[..., 2] = 255
+
+    image = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+
+    if homogenous:
+        kernel = np.ones((5, 5), np.uint8)
+        image = cv2.erode(image, kernel, iterations=1)
+
+    if save_path:
+        filename = f"{save_path}/dense_plot_{sequence_id}"
+        cv2.imwrite(filename, image)
+    else:
+        cv2.imshow(f"Colored Flow {sequence_id}", image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
 
 def histogram_with_mean_plot(title: str, idx: str, values: float, mean_value: float, save_path=None):
     plt.figure()
