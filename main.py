@@ -1,10 +1,11 @@
 import argparse
 import os
 import week1, week2, week3
+import week4
 
 parser = argparse.ArgumentParser(description='M6 - Video Analysis: Video Surveillance for Road Traffic Monitoring')
 
-parser.add_argument('-w', '--week', type=int, help='week to execute. Options are [1,2]')
+parser.add_argument('-w', '--week', type=int, help='week to execute. Options are [1,2,3,4,5]')
 parser.add_argument('-t', '--task', type=int, help='task to execute. Options are [1,2,3,4]')
 args = parser.parse_args()
 
@@ -39,7 +40,7 @@ elif args.week == 2:
 
 elif args.week == 3:
     if args.task == 1_1:
-        week3.task1_1(architecture='maskrcnn', start=0, length=None, gpu=3, visualize=False, track_flag=True)
+        week3.task1_1(architecture='maskrcnn', start=0, length=None, gpu=3, visualize=False)
     elif args.task == 1_2:
         week3.task1_2()
     elif args.task == 2_1:
@@ -50,7 +51,18 @@ elif args.week == 3:
         raise ValueError(f"Bad input task {args.task}. Options are [1_1, 1_2, 2_1, 2_2]")
 
 elif args.week == 4:
-    raise NotImplemented(f"Week {args.week} not yet implemented")
+    if args.task == 1_1:
+        week4.task1_1()
+    elif args.task == 1_2:
+        week4.task1_2()
+    elif args.task == 2_1:
+        week4.task2_1()
+    elif args.task == 2_2:
+        week4.task2_2()
+    elif args.task == 3_1:
+        week4.task3_1()
+    else:
+        raise ValueError(f"Bad input task {args.task}. Options are [1_1, 1_2, 2_1, 2_2, 3_1]")
 elif args.week == 5:
     raise NotImplemented(f"Week {args.week} not yet implemented")
 
