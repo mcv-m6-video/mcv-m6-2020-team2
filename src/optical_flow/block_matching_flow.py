@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import cv2
 from skimage.feature import match_template
@@ -60,7 +62,7 @@ def block_matching(reference, target, metric='euclidean', algorithm='es'):
         raise ValueError(f'Unknown block matching algorithm: {algorithm}')
 
 
-def block_matching_flow(img_prev: np.ndarray, img_next: np.ndarray, block_size=16, search_area=7,
+def block_matching_flow(img_prev: np.ndarray, img_next: np.ndarray, block_size=16, search_area=16,
                         motion_type='backward', metric='euclidean', algorithm='es'):
     """
     Compute block-matching based motion estimation
@@ -135,13 +137,15 @@ if __name__ == '__main__':
     img_next = cv2.imread('../../data/data_stereo_flow/training/image_0/000045_11.png', cv2.IMREAD_GRAYSCALE)
     flow_noc = read_flow('../../data/data_stereo_flow/training/flow_noc/000045_10.png')
 
+    tic = time.time()
     flow = block_matching_flow(img_prev, img_next, algorithm='corr')
-    #flow = cv2.calcOpticalFlowFarneback(img_prev, img_next, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+    toc = time.time()
+    print(f'runtime: {toc-tic:.3f}s')
 
     err = np.sqrt(np.sum((flow_noc[..., :2] - flow) ** 2, axis=2))
     noc = flow_noc[..., 2].astype(bool)
     msen = np.mean(err[noc] ** 2)
-    pepn = np.sum(err[noc] > 3) / err.size
+    pepn = np.sum(err[noc] > 3) / err[noc].size
     print(f'MSEN: {msen:.4f}, PEPN: {pepn:.4f}')
 
     cv2.imshow('flow', draw_flow(img_prev, flow))
