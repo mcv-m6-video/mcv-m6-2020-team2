@@ -7,8 +7,8 @@ import pandas as pd
 
 from src.optical_flow.block_matching_flow import read_flow, block_matching_flow, evaluate_flow
 from src.video_stabilization.block_matching_stabilization import block_matching_stabilization
-from video_stabilization.mesh_flow.stabilization import mesh_flow_main
-from video_stabilization.point_feature_matching import point_feature_matching
+from src.video_stabilization.mesh_flow.stabilization import mesh_flow_main
+from src.video_stabilization.point_feature_matching import point_feature_matching
 
 
 def task1_1():
@@ -20,7 +20,7 @@ def task1_1():
 
     motion_type = ['forward', 'backward']
     search_area = [16, 32, 64, 128]
-    block_size = [4, 8, 16]
+    block_size = [4, 8, 16, 32]
 
     data = []
     for m, p, n in product(motion_type, search_area, block_size):
@@ -28,7 +28,7 @@ def task1_1():
         flow = block_matching_flow(img_prev, img_next, motion_type=m, search_area=p, block_size=n, algorithm='corr')
         toc = time.time()
         msen, pepn = evaluate_flow(flow_noc, flow)
-        data.append([m, p, n, msen, pepn, toc-tic])
+        data.append([m, p, n, msen, pepn, toc - tic])
     df = pd.DataFrame(data, columns=['motion_type', 'search_area', 'block_size', 'msen', 'pepn', 'runtime'])
     print(df)
 
@@ -53,12 +53,12 @@ def task2_2(method="point_feature"):
     # Off-the-shelf Stabilization
 
     cap = cv2.VideoCapture('data/shaky_videos/seattle.avi')
-    out =  f"results/week4/{method}/seattle"
+    out = f"results/week4/{method}/seattle"
     if not os.path.exists(out):
         os.makedirs(out)
 
     if method == "point_feature":
-        smooth_radius = 5 # play a bit with this paramenter
+        smooth_radius = 5  # play a bit with this paramenter
         point_feature_matching(cap, smooth_radius, out, to_video=False, video_percentage=0.3)
 
     elif method == "mesh_flow":
@@ -72,4 +72,4 @@ def task3_1():
 
 if __name__ == '__main__':
     task1_1()
-    task2_2(method="mesh_flow")
+    # task2_2(method="mesh_flow")
