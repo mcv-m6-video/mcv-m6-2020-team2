@@ -11,3 +11,4 @@ numba==0.48.0
 scikit-learn==0.22.2.post1
 filterpy==1.4.5
 motmetrics==1.2.0
+pandas==1.0.3

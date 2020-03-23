@@ -132,20 +132,25 @@ def read_flow(filename):
     return flow
 
 
+def evaluate_flow(flow_noc, flow):
+    err = np.sqrt(np.sum((flow_noc[..., :2] - flow) ** 2, axis=2))
+    noc = flow_noc[..., 2].astype(bool)
+    msen = np.mean(err[noc] ** 2)
+    pepn = np.sum(err[noc] > 3) / err[noc].size
+    return msen, pepn
+
+
 if __name__ == '__main__':
     img_prev = cv2.imread('../../data/data_stereo_flow/training/image_0/000045_10.png', cv2.IMREAD_GRAYSCALE)
     img_next = cv2.imread('../../data/data_stereo_flow/training/image_0/000045_11.png', cv2.IMREAD_GRAYSCALE)
     flow_noc = read_flow('../../data/data_stereo_flow/training/flow_noc/000045_10.png')
 
     tic = time.time()
-    flow = block_matching_flow(img_prev, img_next, algorithm='corr')
+    flow = block_matching_flow(img_prev, img_next, motion_type='forward', block_size=16, search_area=32, algorithm='corr')
     toc = time.time()
     print(f'runtime: {toc-tic:.3f}s')
 
-    err = np.sqrt(np.sum((flow_noc[..., :2] - flow) ** 2, axis=2))
-    noc = flow_noc[..., 2].astype(bool)
-    msen = np.mean(err[noc] ** 2)
-    pepn = np.sum(err[noc] > 3) / err[noc].size
+    msen, pepn = evaluate_flow(flow_noc, flow)
     print(f'MSEN: {msen:.4f}, PEPN: {pepn:.4f}')
 
     cv2.imshow('flow', draw_flow(img_prev, flow))
