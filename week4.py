@@ -7,7 +7,8 @@ import pandas as pd
 
 from src.optical_flow.block_matching_flow import read_flow, block_matching_flow, evaluate_flow
 from src.video_stabilization.block_matching_stabilization import block_matching_stabilization
-from src.video_stabilization.point_feature_matching import point_feature_matching
+from video_stabilization.mesh_flow.stabilization import mesh_flow_main
+from video_stabilization.point_feature_matching import point_feature_matching
 
 
 def task1_1():
@@ -48,15 +49,20 @@ def task2_1():
     block_matching_stabilization(cap, out, to_video=False, video_percentage=0.15)
 
 
-def task2_2():
+def task2_2(method="point_feature"):
     # Off-the-shelf Stabilization
 
-    cap = cv2.VideoCapture('data/pati.mp4')
-    out = "results/week4/patio"
-
+    cap = cv2.VideoCapture('data/shaky_videos/seattle.avi')
+    out =  f"results/week4/{method}/seattle"
     if not os.path.exists(out):
         os.makedirs(out)
-    point_feature_matching(cap, out, to_video=False, video_percentage=0.3)
+
+    if method == "point_feature":
+        smooth_radius = 5 # play a bit with this paramenter
+        point_feature_matching(cap, smooth_radius, out, to_video=False, video_percentage=0.3)
+
+    elif method == "mesh_flow":
+        mesh_flow_main(cap, out, video_percentage=0.3)
 
 
 def task3_1():
@@ -66,4 +72,4 @@ def task3_1():
 
 if __name__ == '__main__':
     task1_1()
-    # task2_2()
+    task2_2(method="mesh_flow")

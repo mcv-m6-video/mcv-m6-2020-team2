@@ -1,4 +1,7 @@
-import os
+"""
+Library: https://adamspannbauer.github.io/python_video_stab/html/module_docs.html
+Is also based on this implementation
+"""
 
 import imageio
 import numpy as np
@@ -17,11 +20,11 @@ def movingAverage(curve, radius):
 
   return curve_smoothed
 
-def smooth(trajectory):
+def smooth(trajectory, smooth_radius):
   smoothed_trajectory = np.copy(trajectory)
   # Filter the x, y and angle curves
   for i in range(3):
-    smoothed_trajectory[:,i] = movingAverage(trajectory[:,i], radius=2)
+    smoothed_trajectory[:,i] = movingAverage(trajectory[:,i], radius=smooth_radius)
 
   return smoothed_trajectory
 
@@ -89,7 +92,7 @@ def apply_camera_motion(i, frame, transforms_smooth, w, h):
 
     return frame_out
 
-def point_feature_matching(cap, output_file, to_video, video_percentage=1):
+def point_feature_matching(cap, smooth_radius, output_file, to_video, video_percentage=1):
     n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -119,8 +122,9 @@ def point_feature_matching(cap, output_file, to_video, video_percentage=1):
         prev_gray = curr_gray
 
     # STEP 2: COMPUTE SMOOTH TRAJECTORY
+
     trajectory = np.cumsum(transforms, axis=0)
-    difference = smooth(trajectory) - trajectory
+    difference = smooth(trajectory, smooth_radius) - trajectory
     transforms_smooth = transforms + difference
 
 
@@ -134,6 +138,7 @@ def point_feature_matching(cap, output_file, to_video, video_percentage=1):
         if not success:
             break
 
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame_stabilized = apply_camera_motion(i, frame, transforms_smooth, w, h)
 
         if to_video:
