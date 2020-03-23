@@ -5,12 +5,13 @@ from src.utils.detection import Detection
 from src.utils.track import Track
 from src.evaluation.intersection_over_union import bb_intersecion_over_union
 
-def update_tracks_by_overlap(tracks, new_detections, max_track):
+
+def update_tracks_by_overlap(tracks, new_detections, max_track, optical_flow=None):
     new_detections_copy = deepcopy(new_detections)
     frame_tracks = []
     for track in tracks:
         # Compare track detection in last frame with new detections
-        matched_detection = match_next_bbox(track.last_detection(), new_detections_copy)
+        matched_detection = match_next_bbox(track.last_detection(), new_detections_copy, optical_flow)
         # If there's a match, refine detections
         if matched_detection:
             refined_detection = refine_bbox(track.get_track()[-2:], matched_detection)
@@ -57,15 +58,24 @@ def refine_bbox(last_detections, new_detection, k=0.5):
 
     return refined_detection
 
-def match_next_bbox(last_detection, unused_detections):
+def match_next_bbox(last_detection, unused_detections, optical_flow):
+    last_detection_copy = deepcopy(last_detection)
+
+    # Compensate last_detection
+    if optical_flow is not None:
+        last_detection_copy.xtl -= optical_flow[int(last_detection_copy.ytl), int(last_detection_copy.xtl), 0]
+        last_detection_copy.ytl -= optical_flow[int(last_detection_copy.ytl), int(last_detection_copy.xtl), 1]
+        last_detection_copy.xbr -= optical_flow[int(last_detection_copy.ybr), int(last_detection_copy.xbr), 0]
+        last_detection_copy.ybr -= optical_flow[int(last_detection_copy.ybr), int(last_detection_copy.xbr), 1]
+
     max_iou = 0
     for detection in unused_detections:
-        iou = bb_intersecion_over_union(last_detection.bbox, detection.bbox)
+        iou = bb_intersecion_over_union(last_detection_copy.bbox, detection.bbox)
         if iou > max_iou:
             max_iou = iou
             best_match = detection
     if max_iou > 0:
-        best_match.id = last_detection.id
+        best_match.id = last_detection_copy.id
         return best_match
     else:
         return None
