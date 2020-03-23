@@ -11,6 +11,11 @@ from src.optical_flow.pyflow import pyflow
 from src.video_stabilization.block_matching_stabilization import block_matching_stabilization
 from src.video_stabilization.mesh_flow.stabilization import mesh_flow_main
 from src.video_stabilization.point_feature_matching import point_feature_matching
+from src.tracking.tracking import update_tracks_by_overlap
+from src.evaluation.idf1 import MOTAcumulator
+from src.utils.aicity_reader import AICityChallengeAnnotationReader
+from src.optical_flow.block_matching_flow import block_matching_flow
+from src.evaluation.average_precision import mean_average_precision
 
 
 def task1_1():
@@ -89,12 +94,82 @@ def task2_2(method="point_feature"):
         mesh_flow_main(cap, out, video_percentage=0.3)
 
 
-def task3_1():
-    # Object Tracking with Optical Flow
-    pass
+def task3_1(video_percentage=1):
+    # Tracking with optical flow
 
+    cap = cv2.VideoCapture('data/AICity_data/train/S03/c010/vdo.avi')
+    n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = int(cap.get(cv2.CAP_PROP_FPS))
+    save_path = 'results/week4/task_31'
+    os.makedirs(save_path, exist_ok=True)
 
-if __name__ == '__main__':
-    # task1_1()
-    task1_2()
-    # task2_2(method="mesh_flow")
+    reader = AICityChallengeAnnotationReader(path='data/ai_challenge_s03_c010-full_annotation.xml')
+    gt = reader.get_annotations(classes=['car'])
+    reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/S03/c010/det/det_mask_rcnn.txt')
+    dets = reader.get_annotations(classes=['car'])
+
+    if save_path:
+        writer = imageio.get_writer(os.path.join(save_path, f'task31.gif'), fps=fps)
+
+    accumulator = MOTAcumulator()
+    y_true = []
+    y_pred = []
+    y_pred_refined = []
+    tracks = []
+    max_track = 0
+    previous_frame = None
+    end = int(n_frames * video_percentage)
+    for i, frame in enumerate(dets.keys()):
+        if i == end:
+            break
+
+        if save_path:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
+            ret, img = cap.read()
+
+        if i == 0:
+            optical_flow = None
+        else:
+            # TODO: change flow method
+            optical_flow = block_matching_flow(previous_frame, img, block_size=32, search_area=16, motion_type='forward')
+
+        previous_frame = img.copy()
+
+        detections_on_frame = dets.get(frame, [])
+        tracks, frame_tracks, max_track = update_tracks_by_overlap(tracks,
+                                                                   detections_on_frame,
+                                                                   max_track,
+                                                                   optical_flow)
+
+        frame_detections = []
+        for track in frame_tracks:
+            det = track.last_detection()
+            frame_detections.append(det)
+            if save_path:
+                cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), track.color, 2)
+                cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), track.color, -2)
+                cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
+                for dd in track.track:
+                    cv2.circle(img, dd.center, 5, track.color, -1)
+
+        y_pred_refined.append(frame_detections)
+        y_pred.append(detections_on_frame)
+        y_true.append(gt.get(frame, []))
+
+        accumulator.update(y_true[-1], y_pred_refined[-1])
+
+        if save_path:
+            writer.append_data(cv2.resize(img, (600, 350)))
+
+    cv2.destroyAllWindows()
+    if save_path:
+        writer.close()
+
+    ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'], sort_method='score')
+    print(f'Original AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+    ap, prec, rec = mean_average_precision(y_true, y_pred_refined, classes=['car'], sort_method='score')
+    print(f'After refinement AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
+    print('\nAdditional metrics:')
+    print(accumulator.get_idf1())
