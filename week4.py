@@ -2,10 +2,12 @@ import os
 import time
 from itertools import product
 
+import numpy as np
 import cv2
 import pandas as pd
 
 from src.optical_flow.block_matching_flow import read_flow, block_matching_flow, evaluate_flow
+from src.optical_flow.pyflow import pyflow
 from src.video_stabilization.block_matching_stabilization import block_matching_stabilization
 from src.video_stabilization.mesh_flow.stabilization import mesh_flow_main
 from src.video_stabilization.point_feature_matching import point_feature_matching
@@ -35,7 +37,29 @@ def task1_1():
 
 def task1_2():
     # Off-the-shelf Optical Flow
-    pass
+
+    img_prev = cv2.imread('data/data_stereo_flow/training/image_0/000045_10.png', cv2.IMREAD_GRAYSCALE)
+    img_next = cv2.imread('data/data_stereo_flow/training/image_0/000045_11.png', cv2.IMREAD_GRAYSCALE)
+    flow_noc = read_flow('data/data_stereo_flow/training/flow_noc/000045_10.png')
+
+    img_prev = np.atleast_3d(img_prev.astype(float) / 255.)
+    img_next = np.atleast_3d(img_next.astype(float) / 255.)
+
+    # flow options:
+    alpha = 0.012
+    ratio = 0.75
+    minWidth = 20
+    nOuterFPIterations = 7
+    nInnerFPIterations = 1
+    nSORIterations = 30
+    colType = 1  # 0 or default:RGB, 1:GRAY (but pass gray image with shape (h,w,1))
+
+    u, v, im2W = pyflow.coarse2fine_flow(img_prev, img_next, alpha, ratio, minWidth, nOuterFPIterations,
+                                         nInnerFPIterations, nSORIterations, colType)
+    flow = np.dstack((u, v))
+
+    msen, pepn = evaluate_flow(flow_noc, flow)
+    print(f'MSEN: {msen:.4f}, PEPN: {pepn:.4f}')
 
 
 def task2_1():
@@ -71,5 +95,6 @@ def task3_1():
 
 
 if __name__ == '__main__':
-    task1_1()
+    # task1_1()
+    task1_2()
     # task2_2(method="mesh_flow")
