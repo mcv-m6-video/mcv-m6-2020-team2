@@ -6,16 +6,18 @@ import numpy as np
 import cv2
 import pandas as pd
 
-from src.optical_flow.block_matching_flow import read_flow, block_matching_flow, evaluate_flow
+from src.optical_flow.block_matching_flow import block_matching_flow
+from src.optical_flow.utils import read_flow, evaluate_flow, draw_flow, draw_hsv
 from src.optical_flow.pyflow import pyflow
+
 from src.video_stabilization.block_matching_stabilization import block_matching_stabilization
 from src.video_stabilization.mesh_flow.stabilization import mesh_flow_main
 from src.video_stabilization.point_feature_matching import point_feature_matching
-from src.tracking.tracking import update_tracks_by_overlap
-from src.evaluation.idf1 import MOTAcumulator
+
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
-from src.optical_flow.block_matching_flow import block_matching_flow
+from src.tracking.tracking import update_tracks_by_overlap
 from src.evaluation.average_precision import mean_average_precision
+from src.evaluation.idf1 import MOTAcumulator
 
 
 def task1_1():
@@ -40,31 +42,58 @@ def task1_1():
     print(df)
 
 
-def task1_2():
+def task1_2(algorithm='pyflow'):
     # Off-the-shelf Optical Flow
 
     img_prev = cv2.imread('data/data_stereo_flow/training/image_0/000045_10.png', cv2.IMREAD_GRAYSCALE)
     img_next = cv2.imread('data/data_stereo_flow/training/image_0/000045_11.png', cv2.IMREAD_GRAYSCALE)
     flow_noc = read_flow('data/data_stereo_flow/training/flow_noc/000045_10.png')
 
-    img_prev = np.atleast_3d(img_prev.astype(float) / 255.)
-    img_next = np.atleast_3d(img_next.astype(float) / 255.)
+    if algorithm == 'pyflow':
+        im1 = np.atleast_3d(img_prev.astype(float) / 255.)
+        im2 = np.atleast_3d(img_next.astype(float) / 255.)
 
-    # flow options:
-    alpha = 0.012
-    ratio = 0.75
-    minWidth = 20
-    nOuterFPIterations = 7
-    nInnerFPIterations = 1
-    nSORIterations = 30
-    colType = 1  # 0 or default:RGB, 1:GRAY (but pass gray image with shape (h,w,1))
+        # flow options:
+        alpha = 0.012
+        ratio = 0.75
+        minWidth = 20
+        nOuterFPIterations = 7
+        nInnerFPIterations = 1
+        nSORIterations = 30
+        colType = 1  # 0 or default:RGB, 1:GRAY (but pass gray image with shape (h,w,1))
 
-    u, v, im2W = pyflow.coarse2fine_flow(img_prev, img_next, alpha, ratio, minWidth, nOuterFPIterations,
-                                         nInnerFPIterations, nSORIterations, colType)
-    flow = np.dstack((u, v))
+        u, v, im2W = pyflow.coarse2fine_flow(im1, im2, alpha, ratio, minWidth, nOuterFPIterations,
+                                             nInnerFPIterations, nSORIterations, colType)
+        flow = np.dstack((u, v))
+    elif algorithm == 'lk':
+        height, width = img_prev.shape[:2]
+
+        # dense flow: one point for each pixel
+        p0 = np.array([[x, y] for y in range(height) for x in range(width)], dtype=np.float32).reshape((-1, 1, 2))
+
+        # params for lucas-kanade optical flow
+        lk_params = dict(winSize=(15, 15), maxLevel=2, criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
+
+        p1, st, err = cv2.calcOpticalFlowPyrLK(img_prev, img_next, p0, None, **lk_params)
+
+        p0 = p0.reshape((height, width, 2))
+        p1 = p1.reshape((height, width, 2))
+        st = st.reshape((height, width))
+
+        # flow field computed by subtracting prev points from next points
+        flow = p1 - p0
+        flow[st == 0] = 0
+    elif algorithm == 'fb':
+        flow = cv2.calcOpticalFlowFarneback(img_prev, img_next, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+    else:
+        raise ValueError(f'Unknown optical flow algorithm: {algorithm}')
 
     msen, pepn = evaluate_flow(flow_noc, flow)
     print(f'MSEN: {msen:.4f}, PEPN: {pepn:.4f}')
+
+    cv2.imshow('flow', draw_flow(img_prev, flow))
+    cv2.imshow('hsv', draw_hsv(flow))
+    cv2.waitKey(0)
 
 
 def task2_1():
@@ -173,3 +202,9 @@ def task3_1(video_percentage=1):
     print(f'After refinement AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
     print('\nAdditional metrics:')
     print(accumulator.get_idf1())
+
+
+if __name__ == '__main__':
+    # task1_1()
+    task1_2(algorithm='pyflow')
+    # task2_2(method="mesh_flow")
