@@ -6,7 +6,7 @@ from src.utils.track import Track
 from src.evaluation.intersection_over_union import bb_intersecion_over_union
 
 
-def update_tracks_by_overlap(tracks, new_detections, max_track, optical_flow=None):
+def update_tracks_by_overlap(tracks, new_detections, max_track, refinement=True, optical_flow=None):
     new_detections_copy = deepcopy(new_detections)
     frame_tracks = []
     for track in tracks:
@@ -14,7 +14,10 @@ def update_tracks_by_overlap(tracks, new_detections, max_track, optical_flow=Non
         matched_detection = match_next_bbox(track.last_detection(), new_detections_copy, optical_flow)
         # If there's a match, refine detections
         if matched_detection:
-            refined_detection = refine_bbox(track.get_track()[-2:], matched_detection)
+            if refinement:
+                refined_detection = refine_bbox(track.get_track()[-2:], matched_detection)
+            else:
+                refined_detection = deepcopy(matched_detection)
             track.add_detection(refined_detection)
             frame_tracks.append(track)
             new_detections_copy.remove(matched_detection)
@@ -63,10 +66,10 @@ def match_next_bbox(last_detection, unused_detections, optical_flow):
 
     # Compensate last_detection
     if optical_flow is not None:
-        last_detection_copy.xtl -= optical_flow[int(last_detection_copy.ytl), int(last_detection_copy.xtl), 0]
-        last_detection_copy.ytl -= optical_flow[int(last_detection_copy.ytl), int(last_detection_copy.xtl), 1]
-        last_detection_copy.xbr -= optical_flow[int(last_detection_copy.ybr), int(last_detection_copy.xbr), 0]
-        last_detection_copy.ybr -= optical_flow[int(last_detection_copy.ybr), int(last_detection_copy.xbr), 1]
+        last_detection_copy.xtl += optical_flow[int(last_detection_copy.ytl), int(last_detection_copy.xtl), 0]
+        last_detection_copy.ytl += optical_flow[int(last_detection_copy.ytl), int(last_detection_copy.xtl), 1]
+        last_detection_copy.xbr += optical_flow[int(last_detection_copy.ybr), int(last_detection_copy.xbr), 0]
+        last_detection_copy.ybr += optical_flow[int(last_detection_copy.ybr), int(last_detection_copy.xbr), 1]
 
     max_iou = 0
     for detection in unused_detections:
