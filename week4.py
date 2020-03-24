@@ -62,8 +62,10 @@ def task1_2(algorithm='pyflow'):
         nSORIterations = 30
         colType = 1  # 0 or default:RGB, 1:GRAY (but pass gray image with shape (h,w,1))
 
+        tic = time.time()
         u, v, im2W = pyflow.coarse2fine_flow(im1, im2, alpha, ratio, minWidth, nOuterFPIterations,
                                              nInnerFPIterations, nSORIterations, colType)
+        toc = time.time()
         flow = np.dstack((u, v))
     elif algorithm == 'lk':
         height, width = img_prev.shape[:2]
@@ -74,7 +76,9 @@ def task1_2(algorithm='pyflow'):
         # params for lucas-kanade optical flow
         lk_params = dict(winSize=(15, 15), maxLevel=2, criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
 
+        tic = time.time()
         p1, st, err = cv2.calcOpticalFlowPyrLK(img_prev, img_next, p0, None, **lk_params)
+        toc = time.time()
 
         p0 = p0.reshape((height, width, 2))
         p1 = p1.reshape((height, width, 2))
@@ -84,15 +88,17 @@ def task1_2(algorithm='pyflow'):
         flow = p1 - p0
         flow[st == 0] = 0
     elif algorithm == 'fb':
+        tic = time.time()
         flow = cv2.calcOpticalFlowFarneback(img_prev, img_next, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+        toc = time.time()
     else:
         raise ValueError(f'Unknown optical flow algorithm: {algorithm}')
 
     msen, pepn = evaluate_flow(flow_noc, flow)
-    print(f'MSEN: {msen:.4f}, PEPN: {pepn:.4f}')
+    print(f'MSEN: {msen:.4f}, PEPN: {pepn:.4f}, runtime: {toc-tic:.3f}s')
 
-    cv2.imshow('flow', draw_flow(img_prev, flow))
-    cv2.imshow('hsv', draw_hsv(flow))
+    cv2.imshow(f'flow_{algorithm}', draw_flow(img_prev, flow))
+    cv2.imshow(f'hsv_{algorithm}', draw_hsv(flow))
     cv2.waitKey(0)
 
 
