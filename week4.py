@@ -1,6 +1,8 @@
 import os
 import time
 from itertools import product
+import imageio
+from tqdm import tqdm
 
 import numpy as np
 import cv2
@@ -156,7 +158,7 @@ def task3_1(video_percentage=1):
     max_track = 0
     previous_frame = None
     end = int(n_frames * video_percentage)
-    for i, frame in enumerate(dets.keys()):
+    for i, frame in tqdm(enumerate(dets.keys())):
         if i == end:
             break
 
@@ -167,8 +169,33 @@ def task3_1(video_percentage=1):
         if i == 0:
             optical_flow = None
         else:
-            # TODO: change flow method
-            optical_flow = block_matching_flow(previous_frame, img, block_size=32, search_area=16, motion_type='forward')
+            height, width = previous_frame.shape[:2]
+
+            # get points on which to detect the flow
+            points = []
+            for det in detections_on_frame:
+                points.append([det.xtl, det.ytl])
+                points.append([det.xbr, det.ybr])
+            p0 = np.array(points, dtype=np.float32)
+
+            # params for lucas-kanade optical flow
+            lk_params = dict(winSize=(15, 15), maxLevel=2, criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
+
+            p1, st, err = cv2.calcOpticalFlowPyrLK(previous_frame, img, p0, None, **lk_params)
+
+            p0 = p0.reshape((len(detections_on_frame)*2, 2))
+            p1 = p1.reshape((len(detections_on_frame)*2, 2))
+            st = st.reshape(len(detections_on_frame)*2)
+
+            # flow field computed by subtracting prev points from next points
+            flow = p1 - p0
+            flow[st == 0] = 0
+
+            optical_flow = np.zeros((height, width, 2), dtype=np.float32)
+            for jj, det in enumerate(detections_on_frame):
+                optical_flow[int(det.ytl), int(det.xtl)] = flow[2*jj]
+                optical_flow[int(det.ybr), int(det.xbr)] = flow[2*jj+1]
+
 
         previous_frame = img.copy()
 
@@ -176,7 +203,8 @@ def task3_1(video_percentage=1):
         tracks, frame_tracks, max_track = update_tracks_by_overlap(tracks,
                                                                    detections_on_frame,
                                                                    max_track,
-                                                                   optical_flow)
+                                                                   refinement=False, 
+                                                                   optical_flow=optical_flow)
 
         frame_detections = []
         for track in frame_tracks:
