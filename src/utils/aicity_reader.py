@@ -4,7 +4,7 @@ from collections import defaultdict, OrderedDict
 import numpy as np
 import xmltodict
 
-from src.utils.detection import Detection
+from utils.detection import Detection
 
 
 def parse_annotations_from_xml(path):
@@ -34,6 +34,7 @@ def parse_annotations_from_xml(path):
 
     return annotations
 
+
 def parse_annotations_from_txt(path):
     """
     MOTChallenge format [frame, ID, left, top, width, height, conf, -1, -1, -1]
@@ -58,6 +59,7 @@ def parse_annotations_from_txt(path):
 
     return annotations
 
+
 def parse_annotations(path):
     root, ext = os.path.splitext(path)
     if ext == ".xml":
@@ -66,6 +68,7 @@ def parse_annotations(path):
         return parse_annotations_from_txt(path)
     else:
         raise ValueError(f'Invalid file extension: {ext}')
+
 
 def group_detections_by_frame(detections):
     grouped = defaultdict(list)
@@ -115,7 +118,7 @@ class AICityChallengeAnnotationReader:
 if __name__ == '__main__':
     reader = AICityChallengeAnnotationReader(path='../../data/ai_challenge_s03_c010-full_annotation.xml')
     gt = reader.get_annotations(classes=['car'])
-    #gt_noisy = reader.get_annotations(classes=['car'], noise_params={'drop': 0.05, 'mean': 0, 'std': 10})
+    # gt_noisy = reader.get_annotations(classes=['car'], noise_params={'drop': 0.05, 'mean': 0, 'std': 10})
     reader = AICityChallengeAnnotationReader(path='../../data/AICity_data/train/S03/c010/det/det_mask_rcnn.txt')
     det = reader.get_annotations(classes=['car'])
 
