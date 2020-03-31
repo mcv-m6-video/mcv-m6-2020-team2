@@ -1,7 +1,7 @@
 import argparse
 import os
-import week1, week2, week3
-import week4
+# import week1, week2, week3, week4
+import week5
 
 parser = argparse.ArgumentParser(description='M6 - Video Analysis: Video Surveillance for Road Traffic Monitoring')
 
@@ -63,8 +63,14 @@ elif args.week == 4:
         week4.task3_1()
     else:
         raise ValueError(f"Bad input task {args.task}. Options are [1_1, 1_2, 2_1, 2_2, 3_1]")
+
 elif args.week == 5:
-    raise NotImplemented(f"Week {args.week} not yet implemented")
+    if args.task == 1:
+        week5.task1()
+    elif args.task == 2:
+        week5.task2()
+    else:
+        raise ValueError(f"Bad input task {args.task}. Options are [1, 2]")
 
 else:
     raise ValueError(f"Bad input week {args.week}. Options are [1,2,3,4,5]")

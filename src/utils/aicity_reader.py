@@ -34,7 +34,6 @@ def parse_annotations_from_xml(path):
 
     return annotations
 
-
 def parse_annotations_from_txt(path):
     """
     MOTChallenge format [frame, ID, left, top, width, height, conf, -1, -1, -1]
@@ -59,7 +58,6 @@ def parse_annotations_from_txt(path):
 
     return annotations
 
-
 def parse_annotations(path):
     root, ext = os.path.splitext(path)
     if ext == ".xml":
@@ -68,6 +66,12 @@ def parse_annotations(path):
         return parse_annotations_from_txt(path)
     else:
         raise ValueError(f'Invalid file extension: {ext}')
+
+def group_detections_by_frame(detections):
+    grouped = defaultdict(list)
+    for det in detections:
+        grouped[det.frame].append(det)
+    return OrderedDict(sorted(grouped.items()))
 
 
 class AICityChallengeAnnotationReader:
@@ -103,10 +107,7 @@ class AICityChallengeAnnotationReader:
                     detections.append(d)
 
         if group_by_frame:
-            grouped = defaultdict(list)
-            for det in detections:
-                grouped[det.frame].append(det)
-            detections = OrderedDict(sorted(grouped.items()))
+            detections = group_detections_by_frame(detections)
 
         return detections
 
