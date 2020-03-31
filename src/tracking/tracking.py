@@ -1,5 +1,6 @@
 from copy import deepcopy
 import numpy as np
+from sklearn.metrics.pairwise import pairwise_distances
 
 from src.utils.detection import Detection
 from src.utils.track import Track
@@ -82,3 +83,15 @@ def match_next_bbox(last_detection, unused_detections, optical_flow):
         return best_match
     else:
         return None
+
+def remove_static_tracks(tracks, distance_threshold):
+    new_tracks = []
+    for track in tracks:
+        centroids_of_detections = np.array([[(d.xtl+d.xbr)/2, (d.ytl+d.ybr)/2] for d in track.track])
+        mean_centroid = np.mean(centroids_of_detections, axis=0).reshape((1,2))
+        dists = pairwise_distances(centroids_of_detections, mean_centroid, metric='euclidean')
+
+        if max(dists) > distance_threshold:
+            new_tracks.append(track)
+
+    return new_tracks
