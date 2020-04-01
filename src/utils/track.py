@@ -7,6 +7,7 @@ class Track(object):
         self.color = (int(random.random() * 256),
                       int(random.random() * 256),
                       int(random.random() * 256))
+        self.terminated = False
 
     def get_track(self):
         return self.track
