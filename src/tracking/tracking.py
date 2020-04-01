@@ -1,6 +1,7 @@
 from copy import deepcopy
 import numpy as np
 from sklearn.metrics.pairwise import pairwise_distances
+from scipy.signal import medfilt
 
 from src.utils.detection import Detection
 from src.utils.track import Track
@@ -11,6 +12,9 @@ def update_tracks_by_overlap(tracks, new_detections, max_track, refinement=True,
     new_detections_copy = deepcopy(new_detections)
     frame_tracks = []
     for track in tracks:
+        if track.terminated:
+            continue
+
         # Compare track detection in last frame with new detections
         matched_detection = match_next_bbox(track.last_detection(), new_detections_copy, optical_flow)
         # If there's a match, refine detections
@@ -22,6 +26,8 @@ def update_tracks_by_overlap(tracks, new_detections, max_track, refinement=True,
             track.add_detection(refined_detection)
             frame_tracks.append(track)
             new_detections_copy.remove(matched_detection)
+        else:
+            track.terminated = True
 
     # Update tracks with unused detections after matching
     for unused_detection in new_detections_copy:
@@ -84,14 +90,14 @@ def match_next_bbox(last_detection, unused_detections, optical_flow):
     else:
         return None
 
-def remove_static_tracks(tracks, distance_threshold):
+def remove_static_tracks(tracks, distance_threshold, min_track_len):
     new_tracks = []
     for track in tracks:
-        centroids_of_detections = np.array([[(d.xtl+d.xbr)/2, (d.ytl+d.ybr)/2] for d in track.track])
-        mean_centroid = np.mean(centroids_of_detections, axis=0).reshape((1,2))
-        dists = pairwise_distances(centroids_of_detections, mean_centroid, metric='euclidean')
+        if len(track.track) > min_track_len:
+            centroids_of_detections = np.array([[(d.xtl+d.xbr)/2, (d.ytl+d.ybr)/2] for d in track.track])
+            dists = pairwise_distances(centroids_of_detections, centroids_of_detections, metric='euclidean')
 
-        if max(dists) > distance_threshold:
-            new_tracks.append(track)
+            if np.max(dists) > distance_threshold:
+                new_tracks.append(track)
 
     return new_tracks
