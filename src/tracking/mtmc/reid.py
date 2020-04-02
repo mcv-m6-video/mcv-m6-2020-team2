@@ -1,10 +1,11 @@
 import os
 import argparse
 from collections import defaultdict
+import pprint
 
 import numpy as np
 import cv2
-from sklearn.metrics.pairwise import euclidean_distances
+from sklearn.cluster import MeanShift
 from tqdm import tqdm
 
 from utils.aicity_reader import parse_annotations_from_txt
@@ -31,7 +32,7 @@ def main(args):
         track_embeddings = defaultdict(list)
         batch = []
         ids = []
-        for frame in tqdm(frame_detections.keys(), desc=f'cam {camera}'):
+        for frame in tqdm(np.random.choice(list(frame_detections.keys()), 100), desc=f'cam {camera}'):
             # read frame
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
             ret, img = cap.read()
@@ -63,13 +64,15 @@ def main(args):
         for id, embeddings in track_embeddings.items():
             tracks[(camera, id)] = np.stack(embeddings).mean(axis=0)
 
-    # compute distances between track embeddings
+    # cluster embeddings to associate tracks
     ids = list(tracks.keys())
     embeddings = list(tracks.values())
-    dist = euclidean_distances(np.stack(embeddings))
-    ind = np.unravel_index(np.argsort(dist, axis=None), dist.shape)
-    for i, j in zip(*ind):
-        print(dist[i, j], ids[i], ids[j])
+    ms = MeanShift()
+    ms.fit(np.stack(embeddings))
+    clusters = defaultdict(list)
+    for id, label in zip(ids, ms.labels_):
+        clusters[label].append(id)
+    pprint.pprint(clusters)
 
 
 if __name__ == '__main__':
