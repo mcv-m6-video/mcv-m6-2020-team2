@@ -5,7 +5,7 @@ from glob import glob
 import numpy as np
 from matplotlib import pyplot as plt
 
-# import week1, week2, week3, week4
+import week1, week2, week3, week4
 import week5
 
 parser = argparse.ArgumentParser(description='M6 - Video Analysis: Video Surveillance for Road Traffic Monitoring')

@@ -1,3 +1,4 @@
+import torch
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 import numpy as np
@@ -18,4 +19,8 @@ def show_batch(dataloader, n_view=10, n_cars=10):
         plt.show()
         plt.axis('off')
         break
+
+def matplotlib_imshow(img):
+    npimg = img.numpy()
+    plt.imshow(np.transpose(npimg, (1, 2, 0)))
 
