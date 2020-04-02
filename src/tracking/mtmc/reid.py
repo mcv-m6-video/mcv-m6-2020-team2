@@ -32,7 +32,7 @@ def main(args):
         track_embeddings = defaultdict(list)
         batch = []
         ids = []
-        for frame in tqdm(np.random.choice(list(frame_detections.keys()), 100), desc=f'cam {camera}'):
+        for frame in tqdm(frame_detections.keys(), desc=f'cam {camera}'):
             # read frame
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
             ret, img = cap.read()
