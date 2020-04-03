@@ -79,6 +79,7 @@ elif args.week == 5:
 
         # TEST DISTANCE THRESHOLDS ON DETECTORS
         if test_type == 'distance_thresholds':
+
             save_path = 'results/week5/task_1'
             distance_thresholds = [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650, 675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975, 1000]
             min_track_len = 5
@@ -113,6 +114,7 @@ elif args.week == 5:
             plt.show()
 
         elif test_type == 'min_width_length':
+
             save_path = 'results/week5/task_1'
             distance_thresholds = [550]
             min_track_len = 5
@@ -151,6 +153,8 @@ elif args.week == 5:
             plt.show()
 
         elif test_type == 'one_detector_all_cameras':
+
+            ## No optical flow
             save_path = 'results/week5/task_1'
             distance_thresholds = [675]
             min_track_len = 5
@@ -158,7 +162,7 @@ elif args.week == 5:
             min_height = 48
             sequence = 'S03'
             cameras = [os.path.split(p)[-1] for p in glob('data/AICity_data/train/' + sequence + '/c*')]
-            detector = 'mask_rcnn'
+            detector = 'yolo3'
 
             all_idf1s = []
             for camera in cameras:
@@ -178,7 +182,64 @@ elif args.week == 5:
             for idf1s, camera in zip(all_idf1s, cameras):
                 print(f'\tcamera {camera}: {idf1s}')
 
+            ## Optical flow
+            # save_path = 'results/week5/task_1_optical_flow'
+            # distance_thresholds = [675]
+            # min_track_len = 5
+            # min_width = 60
+            # min_height = 48
+            # sequence = 'S04'
+            # cameras = [os.path.split(p)[-1] for p in glob('data/AICity_data/train/' + sequence + '/c*')]
+            # detector = 'yolo3'
+
+            # all_idf1s = []
+            # for camera in cameras:
+            #     idf1s = week5.task1_optical_flow(
+            #         save_path=save_path,
+            #         distance_thresholds=distance_thresholds,
+            #         min_track_len=min_track_len,
+            #         min_width=min_width,
+            #         min_height=min_height,
+            #         sequence=sequence,
+            #         camera=camera,
+            #         detector=detector)
+
+            #     all_idf1s.append(idf1s[0])
+
+            # print(f'IDF1s for detector {detector} (mean IDF1 {np.mean( np.array(all_idf1s))}):')
+            # for idf1s, camera in zip(all_idf1s, cameras):
+            #     print(f'\tcamera {camera}: {idf1s}')
+
+            ## Kalman filter
+            # save_path = 'results/week5/task_1_kalman_filter'
+            # distance_thresholds = [675]
+            # min_track_len = 5
+            # min_width = 60
+            # min_height = 48
+            # sequence = 'S04'
+            # cameras = [os.path.split(p)[-1] for p in glob('data/AICity_data/train/' + sequence + '/c*')]
+            # detector = 'mask_rcnn'
+
+            # all_idf1s = []
+            # for camera in cameras:
+            #     idf1s = week5.task1_kalman_filter(
+            #         save_path=save_path,
+            #         distance_thresholds=distance_thresholds,
+            #         min_track_len=min_track_len,
+            #         min_width=min_width,
+            #         min_height=min_height,
+            #         sequence=sequence,
+            #         camera=camera,
+            #         detector=detector)
+
+            #     all_idf1s.append(idf1s[0])
+
+            # print(f'IDF1s for detector {detector} (mean IDF1 {np.mean( np.array(all_idf1s))}):')
+            # for idf1s, camera in zip(all_idf1s, cameras):
+            #     print(f'\tcamera {camera}: {idf1s}')
+
         elif test_type == 'mean_idf1_across_cameras_sequence_03':
+
             save_path = 'results/week5/task_1'
             distance_thresholds = [400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650, 675, 700, 725, 750, 775, 800]
             min_track_len = 5
@@ -217,7 +278,6 @@ elif args.week == 5:
             if save_path:
                 plt.savefig(os.path.join(save_path, 'task1_mean-idf1-across-cameras-sequence-03.png'))
             plt.show()
-
 
     elif args.task == 2:
         week5.task2()
