@@ -21,7 +21,7 @@ class Detection:
 
     @property
     def height(self):
-        return abs(self.ytl - self.ybr)
+        return abs(self.ybr - self.ytl)
 
     @property
     def area(self):
@@ -29,7 +29,7 @@ class Detection:
 
     @property
     def center(self):
-        return (int((self.xtl + self.xbr) / 2), int((self.ybr + self.ytl) / 2))
+        return (int((self.xtl + self.xbr) / 2), int((self.ytl + self.ybr) / 2))
 
     def __str__(self):
         return f'frame={self.frame}, id={self.id}, label={self.label}, bbox={self.bbox}, confidence={self.score}, parked={self.parked}'

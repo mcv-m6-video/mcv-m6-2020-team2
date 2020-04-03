@@ -3,36 +3,50 @@ from collections import defaultdict
 
 import torch
 from torch import nn
+from torch.hub import load_state_dict_from_url
 from torchvision import models
 import torchvision.transforms.functional as F
 
 import numpy as np
 import cv2
+from PIL import Image
 from sklearn.metrics.pairwise import paired_distances
 
 from utils.aicity_reader import parse_annotations_from_txt
+from tracking_triplet.network import EmbeddingNet
 
 
 class Encoder(nn.Module):
-    def __init__(self):
+    def __init__(self, url=None):
         super().__init__()
-        self.model = nn.Sequential(
-            *list(models.mobilenet_v2(pretrained=True).features.children())[:-1],
-            nn.AdaptiveAvgPool2d((1, 1))
-        )
+        if url:
+            self.model = EmbeddingNet(num_dims=256)
+            self.model.load_state_dict(load_state_dict_from_url(url)['state_dict'])
+        else:
+            self.model = nn.Sequential(
+                *list(models.mobilenet_v2(pretrained=True).features.children())[:-1],
+                nn.AdaptiveAvgPool2d((1, 1))
+            )
 
     def forward(self, x):
         return self.model(x)
 
     def get_embedding(self, img):
         with torch.no_grad():
-            img = F.to_tensor(img).unsqueeze(0).cuda()
+            img = self.transform(img).unsqueeze(0).cuda()
             return self.forward(img).squeeze().cpu().numpy()
 
     def get_embeddings(self, batch):
         with torch.no_grad():
-            batch = torch.stack([F.to_tensor(img) for img in batch]).cuda()
+            batch = torch.stack([self.transform(img) for img in batch]).cuda()
             return self.forward(batch).squeeze().cpu().numpy()
+
+    @staticmethod
+    def transform(img):
+        img = Image.fromarray(img)
+        img = F.resize(img, (100, 80))  # TODO: change this once the trained model is fixed
+        img = F.to_tensor(img)
+        return img
 
 
 def test_encoder(metric='euclidean'):
@@ -49,24 +63,41 @@ def test_encoder(metric='euclidean'):
         detections[cam] = frame_detections
         cap[cam] = cv2.VideoCapture(os.path.join(root, cam, 'vdo.avi'))
 
-    def random_detection():
-        cam = np.random.choice(cams)
-        frame = np.random.choice(list(detections[cam].keys()))
-        det = np.random.choice(detections[cam][frame])
-        cap[cam].set(cv2.CAP_PROP_POS_FRAMES, frame)
+    def random_detection(cam=None, id=None):
+        if cam is None:
+            cam = np.random.choice(cams)
+        if id is None:
+            frame = np.random.choice(list(detections[cam].keys()))
+            det = np.random.choice(detections[cam][frame])
+        else:
+            for frame in np.random.permutation(list(detections[cam].keys())):
+                found = False
+                for det in detections[cam][frame]:
+                    if det.id == id:
+                        found = True
+                        break
+                if found:
+                    break
+            else:
+                raise ValueError(f'id {id} not found in cam {cam}')
+        cap[cam].set(cv2.CAP_PROP_POS_FRAMES, det.frame)
         ret, img = cap[cam].read()
         img = img[int(det.ytl):int(det.ybr), int(det.xtl):int(det.xbr)]
-        img = cv2.resize(img, (128, 128))
-        return img
+        return img, (cam, det.id)
 
-    encoder = Encoder()
+    encoder = Encoder(url='https://drive.google.com/uc?export=download&id=1Op7ABJidoga04SxGCAdcNFBKut1sLY8c')
     print(encoder)
     encoder.cuda()
     encoder.eval()
 
-    for _ in range(100):
-        img1 = random_detection()
-        img2 = random_detection()
+    pairs = [(('c010', 15), ('c011', 29)), None]
+    for p in pairs:
+        if p is not None:
+            img1, info1 = random_detection(*p[0])
+            img2, info2 = random_detection(*p[1])
+        else:
+            img1, info1 = random_detection()
+            img2, info2 = random_detection()
 
         embd1 = encoder.get_embedding(img1)
         embd2 = encoder.get_embedding(img2)
@@ -74,11 +105,11 @@ def test_encoder(metric='euclidean'):
         dist = paired_distances([embd1], [embd2], metric).squeeze()
         print(dist)
 
-        cv2.imshow('img1', img1)
-        cv2.imshow('img2', img2)
+        cv2.imshow('{}:{}'.format(*info1), img1)
+        cv2.imshow('{}:{}'.format(*info2), img2)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
 
 if __name__ == '__main__':
-    test_encoder(metric='cosine')
+    test_encoder(metric='euclidean')
