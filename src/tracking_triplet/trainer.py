@@ -7,6 +7,7 @@ import numpy as np
 
 from src.tracking_triplet.utils import matplotlib_imshow
 
+
 def save_checkpoint(state, is_best, output_path):
     """Save checkpoint if a new best is achieved"""
     if is_best:
@@ -72,6 +73,7 @@ def val_epoch(model, val_loader, criterion, cuda, writer, epoch):
 
 def fit(model, epochs, train_loader, val_loader, scheduler, optimizer, criterion, log_interval, cuda, writer, output_path):
     best_loss = 100
+
     for epoch in range(1, epochs+1):
         print(f"\nEpoch {epoch}")
         train_loss = train_epoch(model, train_loader, optimizer, criterion, log_interval, cuda, writer, epoch)
@@ -87,5 +89,9 @@ def fit(model, epochs, train_loader, val_loader, scheduler, optimizer, criterion
             'state_dict': model.state_dict(),
             'loss': val_loss
         }, is_best, output_path)
+        if is_best:
+            best_loss = val_loss
+
+
 
 

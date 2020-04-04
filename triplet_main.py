@@ -11,37 +11,31 @@ import os
 from src.tracking_triplet.embeddings import extract_embeddings, plot_embeddings
 from src.tracking_triplet.utils import show_batch
 
-os.environ['CUDA_VISIBLE_DEVICES'] = "1"
-
 visualize=False
+images_x_class = 5
+
 
 dataset='data/week5_dataset_metriclearning/'
-# dataset has to be like:
-# train/class1/im1
-# train/class1/im2
-# train/class2/im1
-# train/class2/im2
-tr = transforms.Compose([transforms.Resize((100,80)), transforms.ToTensor()])
+tr = transforms.Compose([transforms.Resize((80,100)), transforms.ToTensor()])
 train_dataset = ChallengeDataset(rootdir=os.path.join(dataset,'train'), transforms=tr)
-test_dataset = ChallengeDataset(rootdir=os.path.join(dataset,'test'),transforms=tr)
+val_dataset = ChallengeDataset(rootdir=os.path.join(dataset, 'test'), transforms=tr)
 
 # # Something has to tell me the number of classes
 train_n_classes = len(train_dataset.classes)
-test_n_classes = len(test_dataset.classes)
-images_x_class = 15
+val_n_classes = len(val_dataset.classes)
 train_batch_sampler = BalancedBatchSampler(train_dataset.targets, n_classes=train_n_classes, n_samples=images_x_class)
-test_batch_sampler = BalancedBatchSampler(test_dataset.targets, n_classes=test_n_classes, n_samples=images_x_class)
+val_batch_sampler = BalancedBatchSampler(val_dataset.targets, n_classes=val_n_classes, n_samples=images_x_class)
 
 kwargs = {'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_sampler=train_batch_sampler, **kwargs)
-val_loader = torch.utils.data.DataLoader(test_dataset, batch_sampler=test_batch_sampler, **kwargs)
+val_loader = torch.utils.data.DataLoader(val_dataset, batch_sampler=val_batch_sampler, **kwargs)
 
 if visualize:
     show_batch(train_loader, n_view=images_x_class, n_cars=10)
 
 # Preparing network
 margin = 1.
-n_dimensions = 512
+n_dimensions = 128
 model = EmbeddingNet(num_dims=n_dimensions) # Feature Vector dimension
 
 if torch.cuda.is_available():
@@ -54,16 +48,24 @@ optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
 scheduler = lr_scheduler.StepLR(optimizer, 8, gamma=0.1, last_epoch=-1)
 n_epochs = 20
 log_interval = 10
-writer = SummaryWriter('runs/experiment_512_20')
-output_path = f"results/model_dims-{n_dimensions}_images-{images_x_class}"
+
+name = f'model_{n_dimensions}_images-{images_x_class}'
+writer = SummaryWriter(f'runs/{name}')
+output_path = f"results/{name}"
 if not os.path.exists(output_path):
     os.makedirs(output_path)
+
+
+train_embeddings_otl, train_labels_otl = extract_embeddings(train_loader, model, n_dimensions)
+plot_embeddings(train_embeddings_otl, train_labels_otl, train_n_classes, filename=f"train_{name}_before.png")
+
 
 fit(model, n_epochs, train_loader, val_loader, scheduler, optimizer, loss_fn, log_interval,
     torch.cuda.is_available(), writer, output_path)
 
 
 train_embeddings_otl, train_labels_otl = extract_embeddings(train_loader, model, n_dimensions)
-val_embeddings_otl, val_labels_otl = extract_embeddings(val_loader, model, n_dimensions)
-plot_embeddings(train_embeddings_otl, train_labels_otl, train_n_classes, filename="train_final.png")
-plot_embeddings(val_embeddings_otl, val_labels_otl, test_n_classes, filename="val_final.png")
+plot_embeddings(train_embeddings_otl, train_labels_otl, train_n_classes, filename=f"train_{name}_final.png")
+
+# val_embeddings_otl, val_labels_otl = extract_embeddings(val_loader, model, n_dimensions)
+# plot_embeddings(val_embeddings_otl, val_labels_otl, val_n_classes, filename=f"val_{name}_final.png")
