@@ -66,6 +66,7 @@ fit(model, n_epochs, train_loader, val_loader, scheduler, optimizer, loss_fn, lo
 
 train_embeddings_otl, train_labels_otl = extract_embeddings(train_loader, model, n_dimensions)
 plot_embeddings(train_embeddings_otl, train_labels_otl, train_n_classes, filename=f"train_{name}_final.png")
+torch.save(model, output_path+"/model.pth")
 
 # val_embeddings_otl, val_labels_otl = extract_embeddings(val_loader, model, n_dimensions)
 # plot_embeddings(val_embeddings_otl, val_labels_otl, val_n_classes, filename=f"val_{name}_final.png")

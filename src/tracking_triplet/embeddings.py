@@ -12,7 +12,7 @@ def plot_embeddings(embeddings, targets, n_classes, filename, max_classes=20, xl
     classes = list(np.arange(n_classes))
 
     plt.figure(figsize=(10,10))
-    for i in range(max_classes):
+    for i in range(min(max_classes, n_classes)):
         inds = np.where(targets==i)[0]
         plt.scatter(embeddings[inds,0], embeddings[inds,1], alpha=0.5, color=colors[i])
     if xlim:
