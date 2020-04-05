@@ -9,7 +9,7 @@ from src.tracking.tracking import update_tracks_by_overlap, remove_static_tracks
 from src.tracking.sort import Sort
 from src.utils.detection import Detection
 from src.evaluation.idf1 import MOTAcumulator
-from src.utils.aicity_reader import AICityChallengeAnnotationReader, group_detections_by_frame
+from src.utils.aicity_reader import AICityChallengeAnnotationReader, group_by_frame
 from src.evaluation.average_precision import mean_average_precision
 
 
@@ -71,7 +71,7 @@ def task1(save_path='results/week5/task_1',
         detections = []
         for track in moving_tracks:
             detections.extend(track.track)
-        detections = group_detections_by_frame(detections)
+        detections = group_by_frame(detections)
 
         for frame in trange(start, end, desc='Accumulating detections'):
 
@@ -217,7 +217,7 @@ def task1_optical_flow(save_path='results/week5/task_1_optical_flow',
         detections = []
         for track in moving_tracks:
             detections.extend(track.track)
-        detections = group_detections_by_frame(detections)
+        detections = group_by_frame(detections)
 
         for frame in trange(start, end, desc='Accumulating detections'):
 
@@ -330,7 +330,7 @@ def task1_kalman_filter(save_path='results/week5/task_1_kalman_filter',
         detections = []
         for track in moving_tracks:
             detections.extend(track.track)
-        detections = group_detections_by_frame(detections)
+        detections = group_by_frame(detections)
 
         for frame in trange(start, end, desc='Accumulating detections'):
 

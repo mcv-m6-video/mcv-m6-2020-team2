@@ -8,7 +8,7 @@ import cv2
 from sklearn.cluster import MeanShift
 from tqdm import tqdm
 
-from utils.aicity_reader import parse_annotations_from_txt
+from utils.aicity_reader import parse_annotations_from_txt, group_by_frame
 from tracking.mtmc.encoder import Encoder
 
 
@@ -20,25 +20,20 @@ def main(args):
     tracks = {}
     for camera in ['c010', 'c011', 'c012', 'c013', 'c014', 'c015']:
         camera_path = os.path.join(args.root, camera)
-        detections = parse_annotations_from_txt(os.path.join(camera_path, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))
+        detections = group_by_frame(parse_annotations_from_txt(os.path.join(camera_path, 'mtsc', 'mtsc_tc_mask_rcnn.txt')))
         cap = cv2.VideoCapture(os.path.join(camera_path, 'vdo.avi'))
-
-        # group detections by frame
-        frame_detections = defaultdict(list)
-        for det in detections:
-            frame_detections[det.frame].append(det)
 
         # process detections frame by frame
         track_embeddings = defaultdict(list)
         batch = []
         ids = []
-        for frame in tqdm(frame_detections.keys(), desc=f'cam {camera}'):
+        for frame in tqdm(detections.keys(), desc=f'cam {camera}'):
             # read frame
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
             ret, img = cap.read()
 
             # crop and resize detections
-            for det in frame_detections[frame]:
+            for det in detections[frame]:
                 if det.width >= args.width and det.height >= args.height:
                     img_cropped = img[int(det.ytl):int(det.ybr), int(det.xtl):int(det.xbr)]
                     if img_cropped.size > 0:
