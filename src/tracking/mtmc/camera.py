@@ -45,15 +45,17 @@ def magnitude(x):
 
 
 if __name__ == '__main__':
+    import os
     from utils.aicity_reader import parse_annotations_from_txt, group_by_id
 
-    detections = group_by_id(parse_annotations_from_txt('../../../data/AIC20_track3/train/S03/c010/gt/gt.txt'))
-    H = read_calibration('../../../data/AIC20_track3/train/S03/c010/calibration.txt')
-
-    cap = cv2.VideoCapture('../../../data/AIC20_track3/train/S03/c010/vdo.avi')
+    root = '../../../data/AIC20_track3/train/S03/c014'
+    detections = group_by_id(parse_annotations_from_txt(os.path.join(root, 'gt', 'gt.txt')))
+    H = read_calibration(os.path.join(root, 'calibration.txt'))
+    cap = cv2.VideoCapture(os.path.join(root, 'vdo.avi'))
     fps = cap.get(cv2.CAP_PROP_FPS)
 
-    id = np.random.choice(list(detections.keys()))
+    #id = np.random.choice(list(detections.keys()))
+    id = 242
 
     track_3d = []
     for det in sorted(detections[id], key=lambda det: det.frame):
@@ -73,5 +75,5 @@ if __name__ == '__main__':
             break
     track_3d = np.array(track_3d)
 
-    speed = magnitude(estimate_speed(track_3d, fps))
-    print(f'id: {id}, avg speed: {speed*3.6:.2f} km/h')
+    speed = estimate_speed(track_3d, fps)
+    print(f'id: {id}, avg speed: ({speed[0]*3.6:.2f}, {speed[1]*3.6:.2f}) km/h')

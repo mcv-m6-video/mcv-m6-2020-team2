@@ -1,25 +1,21 @@
 import os
-from collections import defaultdict
 
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
 
-from utils.aicity_reader import parse_annotations_from_txt
+from utils.aicity_reader import parse_annotations_from_txt, group_by_frame
 
 
 def plot_tracks(annotations_file, video_file):
-    detections = parse_annotations_from_txt(annotations_file)
+    detections = group_by_frame(parse_annotations_from_txt(annotations_file))
     cap = cv2.VideoCapture(video_file)
     length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    frame_detections = defaultdict(list)
-    for det in detections:
-        frame_detections[det.frame].append(det)
-
-    for frame in sorted(frame_detections.keys()):
+    for frame in detections.keys():
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
         ret, img = cap.read()
-        for det in frame_detections[frame]:
+        for det in detections[frame]:
             np.random.seed(det.id)
             color = tuple(np.random.randint(0, 256, 3).tolist())
 
@@ -35,9 +31,35 @@ def plot_tracks(annotations_file, video_file):
             break
 
 
+def plot_timeline(root, seq):
+    timestamps_file = os.path.join(root, 'cam_timestamp', f'{seq}.txt')
+    timestamps = {}
+    with open(timestamps_file, 'r') as f:
+        for line in f:
+            items = line.split(' ')
+            cam = items[0]
+            timestamp = float(items[1])
+            timestamps[cam] = timestamp
+
+    ranges = {}
+    for cam in timestamps.keys():
+        cap = cv2.VideoCapture(os.path.join(root, 'train', seq, cam, 'vdo.avi'))
+        length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        start_time = timestamps[cam]
+        end_time = start_time + length / fps
+        ranges[cam] = (start_time, end_time)
+
+    plt.barh(range(len(ranges)), [end-start for start, end in ranges.values()], left=[start for start, _ in ranges.values()])
+    plt.yticks(range(len(ranges)), list(ranges.keys()))
+    plt.show()
+
+
 if __name__ == '__main__':
-    root = '../../../data/AIC20_track3/train/S03/c010'
+    root = '../../../data/AIC20_track3/train/S03/c014'
     plot_tracks(
         annotations_file=os.path.join(root, 'gt', 'gt.txt'),
         video_file=os.path.join(root, 'vdo.avi')
     )
+
+    # plot_timeline('../../../data/AIC20_track3', 'S03')
