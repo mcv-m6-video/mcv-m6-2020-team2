@@ -2,6 +2,7 @@ import torch
 from matplotlib import pyplot as plt
 import numpy as np
 import random
+from sklearn.manifold import TSNE
 
 def _generate_colors(number_colors):
     get_colors = lambda n: list(map(lambda i: f"#{random.randint(0, 0xFFFFFF):06x}",range(n)))
@@ -10,7 +11,7 @@ def _generate_colors(number_colors):
 def plot_embeddings(embeddings, targets, n_classes, filename, max_classes=20, xlim=None, ylim=None):
     colors = _generate_colors(n_classes)
     classes = list(np.arange(n_classes))
-
+    embeddings = TSNE(n_components=2).fit_transform(embeddings)
     plt.figure(figsize=(10,10))
     for i in range(min(max_classes, n_classes)):
         inds = np.where(targets==i)[0]
