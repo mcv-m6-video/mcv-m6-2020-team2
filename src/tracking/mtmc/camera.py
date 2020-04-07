@@ -1,5 +1,4 @@
 import numpy as np
-import cv2
 
 
 def read_calibration(filename):
@@ -12,6 +11,17 @@ def read_calibration(filename):
         homography.append([float(x) for x in row.split(' ')])
 
     return np.array(homography)
+
+
+def read_timestamps(filename):
+    timestamps = {}
+    with open(filename, 'r') as f:
+        for line in f:
+            items = line.split(' ')
+            cam = items[0]
+            timestamp = float(items[1])
+            timestamps[cam] = timestamp
+    return timestamps
 
 
 def image2world(u, v, H):
@@ -28,6 +38,16 @@ def world2image(lat, lon, H):
     return u, v
 
 
+def warp_bbox(bbox, H1, H2):
+    xtl, ytl, xbr, ybr = bbox
+    bl = world2image(*image2world(xtl, ybr, H1), H2)
+    br = world2image(*image2world(xbr, ybr, H1), H2)
+    new_width = br[0]-bl[0]
+    new_height = new_width / (xbr-xtl) * (ybr-ytl)
+    new_bbox = (bl[0], bl[1]-new_height, br[0], br[1])
+    return new_bbox
+
+
 def degrees2meters(lat, lon):
     # https://en.wikipedia.org/wiki/Geographic_coordinate_system#Length_of_a_degree
     lat = 111132.92 - 559.82 * np.cos(2*lat) + 1.175 * np.cos(4*lat) - 0.0023 * np.cos(6*lat)
@@ -42,38 +62,3 @@ def estimate_speed(track, fps, w=10):
 
 def magnitude(x):
     return np.sqrt(np.sum(x**2))
-
-
-if __name__ == '__main__':
-    import os
-    from utils.aicity_reader import parse_annotations_from_txt, group_by_id
-
-    root = '../../../data/AIC20_track3/train/S03/c014'
-    detections = group_by_id(parse_annotations_from_txt(os.path.join(root, 'gt', 'gt.txt')))
-    H = read_calibration(os.path.join(root, 'calibration.txt'))
-    cap = cv2.VideoCapture(os.path.join(root, 'vdo.avi'))
-    fps = cap.get(cv2.CAP_PROP_FPS)
-
-    #id = np.random.choice(list(detections.keys()))
-    id = 242
-
-    track_3d = []
-    for det in sorted(detections[id], key=lambda det: det.frame):
-        u, v = (det.xtl + det.xbr) / 2, det.ybr  # bottom center
-        lat, lon = image2world(u, v, H)  # backproject to obtain latitude/longitude in degrees
-        lat, lon = degrees2meters(lat, lon)  # convert degrees to meters
-        track_3d.append(np.array([lat, lon]))
-
-        cap.set(cv2.CAP_PROP_POS_FRAMES, det.frame)
-        ret, img = cap.read()
-        if len(track_3d) >= 5:
-            img = cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), (0, 255, 0), 2)
-            speed = magnitude(estimate_speed(np.array(track_3d[-5:]), fps))
-            img = cv2.putText(img, f'{speed*3.6:.2f} km/h', (int(det.xtl), int(det.ytl)-10), cv2.FONT_HERSHEY_DUPLEX, 0.75, (0, 255, 0), 2)
-        cv2.imshow('tracks', cv2.resize(img, (960, 540)))
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    track_3d = np.array(track_3d)
-
-    speed = estimate_speed(track_3d, fps)
-    print(f'id: {id}, avg speed: ({speed[0]*3.6:.2f}, {speed[1]*3.6:.2f}) km/h')
