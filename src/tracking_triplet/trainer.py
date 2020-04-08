@@ -24,7 +24,6 @@ def write_image_batch_tensorboard(images, writer):
     writer.add_image('batch', img_grid)
 
 
-
 def train_epoch(model, train_loader, optimizer, criterion, log_interval, cuda, writer, epoch):
     model.train()
     losses = []
@@ -36,12 +35,10 @@ def train_epoch(model, train_loader, optimizer, criterion, log_interval, cuda, w
 
         optimizer.zero_grad()
         outputs = model(data)
-        loss, triplets = criterion(outputs, target, data)
+        loss, triplets = criterion(outputs, target)
         loss.backward()
         optimizer.step()
         losses.append(loss.item())
-
-        write_triplets_tensorboard(triplets, data, writer)
 
         if i % log_interval == 0:
             print(f"\n***{i} Avgloss: {np.mean(losses)} | triplets: {len(triplets)}")
@@ -49,6 +46,7 @@ def train_epoch(model, train_loader, optimizer, criterion, log_interval, cuda, w
         writer.add_scalar('training loss', np.mean(losses), epoch * len(train_loader) + i)
         if i == 0:
              write_image_batch_tensorboard(data.cpu(), writer)
+             # write_triplets_tensorboard(triplets, data, writer)
 
         i += 1
     return np.mean(losses)

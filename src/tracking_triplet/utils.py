@@ -1,5 +1,6 @@
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
+from  matplotlib.gridspec import GridSpec
 import numpy as np
 
 def show_batch(dataloader, n_view=10, n_cars=10):
@@ -24,14 +25,18 @@ def matplotlib_imshow(img):
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
 
 def write_triplets_tensorboard(triplets, data, writer):
-    triplets = triplets[:10]
-    fig, axs = plt.subplots(len(triplets), 3)
-    fig.suptitle('Triplets A-P-N')
+    print(len(triplets))
+    triplets = triplets[:15]
 
-    for row in range(len(triplets)):
-        triplet = triplets[row]
-        for col in range(len(triplet)):
-            axs[row, col].imshow(np.transpose(data[triplet[col]].numpy(), (1, 2, 0)))
-            axs[row, col].axis("off")
+    gs = GridSpec(len(triplets), 3)
+    gs.update(wspace=0.1, hspace=0.1, left=0.1, right=0.4, bottom=0.1, top=0.9)
+    flat_list = [item for triplet in triplets for item in triplet]
+
+    for i in range(len(triplets)*3):
+        plt.subplot(gs[i])
+        image = np.transpose(data[flat_list[i]].numpy(), (1, 2, 0))
+        plt.imshow(image)
+        plt.axis('off')
+
     plt.show()
     plt.axis('off')

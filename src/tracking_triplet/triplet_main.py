@@ -28,15 +28,15 @@ if not os.path.exists(output_path):
     os.makedirs(output_path)
 
 writer = SummaryWriter(f'runs/{name}')
-dataset='data/week5_dataset_metriclearning/'
+dataset='../../data/week5_dataset_metriclearning/'
 
 tr = transforms.Compose([transforms.Resize((80,100)),
-                         # transforms.ColorJitter(),
-                         # transforms.RandomHorizontalFlip(),
-                         # transforms.RandomPerspective(),
-                         # transforms.RandomRotation(15),
-                         transforms.ToTensor()# ,
-                         # transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
+                         transforms.ColorJitter(),
+                         transforms.RandomHorizontalFlip(),
+                         transforms.RandomPerspective(),
+                         transforms.RandomRotation(15),
+                         transforms.ToTensor(),
+                         transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
                          ])
 
 train_dataset = ChallengeDataset(rootdir=os.path.join(dataset,'train'), transforms=tr)
@@ -58,9 +58,8 @@ if torch.cuda.is_available():
     model.cuda()
 
 loss_fn = OnlineTripletLoss(margin)
-optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.99)
-# optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
-scheduler = None # lr_scheduler.StepLR(optimizer, 8, gamma=0.1, last_epoch=-1)
+optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+scheduler = lr_scheduler.StepLR(optimizer, 8, gamma=0.1, last_epoch=-1)
 
 if visualize:
     show_batch(train_loader, n_view=images_x_class, n_cars=10)
@@ -70,7 +69,6 @@ if visualize:
 
 fit(model, n_epochs, train_loader, val_loader, scheduler, optimizer, loss_fn, log_interval,
     torch.cuda.is_available(), writer, output_path)
-
 
 torch.save(model, output_path+"/model.pth")
 

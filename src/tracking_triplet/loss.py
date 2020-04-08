@@ -17,10 +17,9 @@ class OnlineTripletLoss(nn.Module):
         super().__init__()
         self.margin = margin
 
-    def forward(self, embeddings, targets, data):
+    def forward(self, embeddings, targets):
 
         triplets = self._get_triplets(embeddings, targets)
-        write_triplets_tensorboard(triplets, data, None)
 
         if embeddings.is_cuda:
             embeddings = embeddings.cuda()
@@ -58,10 +57,10 @@ class OnlineTripletLoss(nn.Module):
 
             for anchor_positive in positive_indices:
                 # Get distances to all possible positives and select the one with maximum distance
-                hardest_positive = positive_indices[np.argmax(distance_matrix[anchor_positive, pair_positive] for pair_positive in positive_indices)]
+                hardest_positive = positive_indices[np.argmax([distance_matrix[anchor_positive, pair_positive] for pair_positive in positive_indices])]
 
                 # Get distances to all possible negatives and select the one with minimum distance
-                hardest_negative= negative_indices[np.argmin(distance_matrix[anchor_positive, pair_negative] for pair_negative in negative_indices)]
+                hardest_negative= negative_indices[np.argmin([distance_matrix[anchor_positive, pair_negative] for pair_negative in negative_indices])]
 
                 triplets.append([anchor_positive, hardest_positive, hardest_negative])
 
