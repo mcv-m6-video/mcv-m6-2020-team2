@@ -1,4 +1,3 @@
-import torch
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 import numpy as np
@@ -24,3 +23,15 @@ def matplotlib_imshow(img):
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
 
+def write_triplets_tensorboard(triplets, data, writer):
+    triplets = triplets[:10]
+    fig, axs = plt.subplots(len(triplets), 3)
+    fig.suptitle('Triplets A-P-N')
+
+    for row in range(len(triplets)):
+        triplet = triplets[row]
+        for col in range(len(triplet)):
+            axs[row, col].imshow(np.transpose(data[triplet[col]].numpy(), (1, 2, 0)))
+            axs[row, col].axis("off")
+    plt.show()
+    plt.axis('off')

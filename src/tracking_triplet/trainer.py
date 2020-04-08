@@ -5,21 +5,24 @@ import torchvision
 from tqdm import tqdm
 import numpy as np
 
-from src.tracking_triplet.utils import matplotlib_imshow
+from src.tracking_triplet.utils import matplotlib_imshow, write_triplets_tensorboard
+from mpl_toolkits.axes_grid1 import ImageGrid
+from matplotlib import pyplot as plt
 
 
 def save_checkpoint(state, is_best, output_path):
     """Save checkpoint if a new best is achieved"""
     if is_best:
-        save_path = os.path.join(output_path, f"checkpoint_epoch_{state['epoch']}_loss_{state['loss']}.pth")
+        save_path = os.path.join(output_path, f"checkpoint_epoch{state['epoch']}_loss_{state['loss']:.3f}.pth")
         torch.save(state, save_path)
     else:
-        print("Validation Accuracy did not improve")
+        print("Validation loss did not improve")
 
-def write_images_tensorboard(images, writer):
+def write_image_batch_tensorboard(images, writer):
     img_grid = torchvision.utils.make_grid(images)
     matplotlib_imshow(img_grid)
     writer.add_image('batch', img_grid)
+
 
 
 def train_epoch(model, train_loader, optimizer, criterion, log_interval, cuda, writer, epoch):
@@ -32,19 +35,20 @@ def train_epoch(model, train_loader, optimizer, criterion, log_interval, cuda, w
             target = target.cuda()
 
         optimizer.zero_grad()
-
         outputs = model(data)
-        loss, number_triplets = criterion(outputs, target)
+        loss, triplets = criterion(outputs, target, data)
         loss.backward()
         optimizer.step()
-
         losses.append(loss.item())
 
+        write_triplets_tensorboard(triplets, data, writer)
+
         if i % log_interval == 0:
-            print(f"\n***{i} Avgloss: {np.mean(losses)} | triplets: {number_triplets}")
-            writer.add_scalar('training loss', np.mean(losses), epoch * len(train_loader) + i)
-            if i == 0:
-                write_images_tensorboard(data.cpu(), writer)
+            print(f"\n***{i} Avgloss: {np.mean(losses)} | triplets: {len(triplets)}")
+
+        writer.add_scalar('training loss', np.mean(losses), epoch * len(train_loader) + i)
+        if i == 0:
+             write_image_batch_tensorboard(data.cpu(), writer)
 
         i += 1
     return np.mean(losses)
@@ -55,7 +59,6 @@ def val_epoch(model, val_loader, criterion, cuda, writer, epoch):
     losses = []
     i = 0
     for data, target in tqdm(val_loader, desc="Validation epoch"):
-
         if cuda:
             data = data.cuda()
             target = target.cuda()
@@ -65,9 +68,7 @@ def val_epoch(model, val_loader, criterion, cuda, writer, epoch):
         losses.append(loss.item())
 
         writer.add_scalar('validation loss', np.mean(losses), epoch * len(val_loader) + i)
-        write_images_tensorboard(data.cpu(), writer)
         i += 1
-
     return np.mean(losses)
 
 
@@ -81,7 +82,8 @@ def fit(model, epochs, train_loader, val_loader, scheduler, optimizer, criterion
 
         print(f'Summary-{epoch} | train_loss: {train_loss:.2f} | val_loss {val_loss:.2f}')
 
-        scheduler.step()
+        if scheduler:
+            scheduler.step()
 
         is_best = bool(val_loss < best_loss)
         save_checkpoint({
@@ -91,7 +93,5 @@ def fit(model, epochs, train_loader, val_loader, scheduler, optimizer, criterion
         }, is_best, output_path)
         if is_best:
             best_loss = val_loss
-
-
 
 

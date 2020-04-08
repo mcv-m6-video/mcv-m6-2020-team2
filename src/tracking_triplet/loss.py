@@ -3,6 +3,9 @@ from torch import nn
 import torch.nn.functional as F
 import numpy as np
 
+from src.tracking_triplet.utils import write_triplets_tensorboard
+
+
 class OnlineTripletLoss(nn.Module):
     """
     Online Triplets loss
@@ -14,19 +17,20 @@ class OnlineTripletLoss(nn.Module):
         super().__init__()
         self.margin = margin
 
-    def forward(self, embeddings, targets):
+    def forward(self, embeddings, targets, data):
 
         triplets = self._get_triplets(embeddings, targets)
+        write_triplets_tensorboard(triplets, data, None)
 
         if embeddings.is_cuda:
             embeddings = embeddings.cuda()
             triplets = triplets.cuda()
 
-        ap_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 1]]).pow(2).sum(1)
-        an_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 2]]).pow(2).sum(1)
+        ap_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 1]]).pow(2).sum(1) # anchor - positive
+        an_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 2]]).pow(2).sum(1) # achor - negative
         losses = F.relu(ap_distances - an_distances + self.margin)
 
-        return losses.mean(), len(triplets)
+        return losses.mean(), triplets
 
 
     def _pair_wise_distance(self, vectors):

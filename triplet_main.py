@@ -10,13 +10,35 @@ from src.tracking_triplet.trainer import fit
 import os
 from src.tracking_triplet.embeddings import extract_embeddings, plot_embeddings
 from src.tracking_triplet.utils import show_batch
+import time
 
 visualize=False
-images_x_class = 5
+images_x_class = 4
+margin = 1.
+n_dimensions = 16
+n_epochs = 20
+log_interval = 10
+lr = 5e-4
+arch = 'resnet'
+n_workers = 4
 
+name = f'model_{arch}_{n_dimensions}_images{images_x_class}-{str(time.time()).split(".")[0]}'
+output_path = f"results/{name}"
+if not os.path.exists(output_path):
+    os.makedirs(output_path)
 
+writer = SummaryWriter(f'runs/{name}')
 dataset='data/week5_dataset_metriclearning/'
-tr = transforms.Compose([transforms.Resize((80,100)), transforms.ToTensor()])
+
+tr = transforms.Compose([transforms.Resize((80,100)),
+                         # transforms.ColorJitter(),
+                         # transforms.RandomHorizontalFlip(),
+                         # transforms.RandomPerspective(),
+                         # transforms.RandomRotation(15),
+                         transforms.ToTensor()# ,
+                         # transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
+                         ])
+
 train_dataset = ChallengeDataset(rootdir=os.path.join(dataset,'train'), transforms=tr)
 val_dataset = ChallengeDataset(rootdir=os.path.join(dataset, 'test'), transforms=tr)
 
@@ -26,47 +48,34 @@ val_n_classes = len(val_dataset.classes)
 train_batch_sampler = BalancedBatchSampler(train_dataset.targets, n_classes=train_n_classes, n_samples=images_x_class)
 val_batch_sampler = BalancedBatchSampler(val_dataset.targets, n_classes=val_n_classes, n_samples=images_x_class)
 
-kwargs = {'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_sampler=train_batch_sampler, **kwargs)
-val_loader = torch.utils.data.DataLoader(val_dataset, batch_sampler=val_batch_sampler, **kwargs)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_sampler=train_batch_sampler, num_workers=n_workers)
+val_loader = torch.utils.data.DataLoader(val_dataset, batch_sampler=val_batch_sampler, num_workers=n_workers)
 
-if visualize:
-    show_batch(train_loader, n_view=images_x_class, n_cars=10)
 
-# Preparing network
-margin = 1.
-n_dimensions = 128
-model = EmbeddingNet(num_dims=n_dimensions) # Feature Vector dimension
-
+# # Preparing network
+model = EmbeddingNet(num_dims=n_dimensions, architecture=arch)
 if torch.cuda.is_available():
     model.cuda()
 
 loss_fn = OnlineTripletLoss(margin)
+optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.99)
+# optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+scheduler = None # lr_scheduler.StepLR(optimizer, 8, gamma=0.1, last_epoch=-1)
 
-lr = 1e-3
-optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
-scheduler = lr_scheduler.StepLR(optimizer, 8, gamma=0.1, last_epoch=-1)
-n_epochs = 20
-log_interval = 10
-
-name = f'model_{n_dimensions}_images-{images_x_class}'
-writer = SummaryWriter(f'runs/{name}')
-output_path = f"results/{name}"
-if not os.path.exists(output_path):
-    os.makedirs(output_path)
-
-
-train_embeddings_otl, train_labels_otl = extract_embeddings(train_loader, model, n_dimensions)
-plot_embeddings(train_embeddings_otl, train_labels_otl, train_n_classes, filename=f"train_{name}_before.png")
+if visualize:
+    show_batch(train_loader, n_view=images_x_class, n_cars=10)
+    train_embeddings, train_labels = extract_embeddings(train_loader, model, torch.cuda.is_available())
+    plot_embeddings(train_loader.dataset, train_embeddings, train_labels, filename=f"train_{name}_before.png", title='Train before')
 
 
 fit(model, n_epochs, train_loader, val_loader, scheduler, optimizer, loss_fn, log_interval,
     torch.cuda.is_available(), writer, output_path)
 
 
-train_embeddings_otl, train_labels_otl = extract_embeddings(train_loader, model, n_dimensions)
-plot_embeddings(train_embeddings_otl, train_labels_otl, train_n_classes, filename=f"train_{name}_final.png")
 torch.save(model, output_path+"/model.pth")
 
-# val_embeddings_otl, val_labels_otl = extract_embeddings(val_loader, model, n_dimensions)
-# plot_embeddings(val_embeddings_otl, val_labels_otl, val_n_classes, filename=f"val_{name}_final.png")
+train_embeddings, train_labels = extract_embeddings(train_loader, model, n_dimensions)
+plot_embeddings(train_loader.dataset, train_embeddings, train_labels, filename=f"train_{name}_final.png", title='Train after')
+
+val_embeddings, val_labels = extract_embeddings(val_loader, model, n_dimensions)
+plot_embeddings(val_loader.dataset, val_embeddings, val_labels, filename=f"val_{name}_final.png", title='Validation after')
