@@ -70,10 +70,17 @@ def parse_annotations(path):
         raise ValueError(f'Invalid file extension: {ext}')
 
 
-def group_detections_by_frame(detections):
+def group_by_frame(detections):
     grouped = defaultdict(list)
     for det in detections:
         grouped[det.frame].append(det)
+    return OrderedDict(sorted(grouped.items()))
+
+
+def group_by_id(detections):
+    grouped = defaultdict(list)
+    for det in detections:
+        grouped[det.id].append(det)
     return OrderedDict(sorted(grouped.items()))
 
 
@@ -110,7 +117,7 @@ class AICityChallengeAnnotationReader:
                     detections.append(d)
 
         if group_by_frame:
-            detections = group_detections_by_frame(detections)
+            detections = group_by_frame(detections)
 
         return detections
 

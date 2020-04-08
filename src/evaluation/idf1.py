@@ -1,6 +1,11 @@
+import os
+from glob import glob
+
 import numpy as np
 import motmetrics as mm
 from sklearn.metrics.pairwise import pairwise_distances
+
+from src.utils.aicity_reader import AICityChallengeAnnotationReader
 
 
 class MOTAcumulator:
@@ -19,5 +24,42 @@ class MOTAcumulator:
 
     def get_idf1(self):
         mh = mm.metrics.create()
-        summary = mh.compute(self.acc, metrics=['idf1', 'idp', 'idr'], name='acc')
-        return summary['idf1']['acc'], summary['idp']['acc'], summary['idr']['acc']
+        summary = mh.compute(self.acc, metrics=['idf1', 'idp', 'idr', 'recall', 'mostly_tracked', 'num_false_positives', 'num_frames', 'mota', 'motp'], name='acc')
+        return summary
+
+
+def get_idf1_from_dir(dir, sequence, method, gt_dir='data/AICity_data/train'):
+    """
+    Assumes the structure inside 'dir' to be:
+        dir
+        |____sequence1
+        |    |____camera1
+        |    |    |____method1.txt
+        |    |    |____method2.txt
+        |    |    |____...
+        |    |____camera2
+        |         |____method1.txt
+        |         |____method2.txt
+        |         |____...
+        |____...
+
+    Names of sequence and cameras must be the same as in the 'gt_dir' folder.
+    """
+    accumulator = MOTAcumulator()
+    for cam_dets_file, gt_file in zip(glob(os.path.join(dir, sequence, '*', method + '.txt')),\
+                                      glob(os.path.join(gt_dir, sequence, '*', 'gt', 'gt.txt'))):
+        # Read files
+        reader = AICityChallengeAnnotationReader(path=gt_file)
+        gt = reader.get_annotations(classes=['car'])
+        reader = AICityChallengeAnnotationReader(path=cam_dets_file)
+        dets = reader.get_annotations(classes=['car'])
+
+        # Iterate over detections and accumulate
+        start = min(list(dets.keys()) + list(gt.keys()))
+        end = max(list(dets.keys()) + list(gt.keys()))
+        for frame in range(start, end):
+            y_true = gt.get(frame, [])
+            y_pred = dets.get(frame, [])
+            accumulator.update(y_true, y_pred)
+
+    return accumulator.get_idf1()
