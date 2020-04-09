@@ -19,8 +19,12 @@ def draw_detections(img, detections):
     return img
 
 
-def plot_tracks(root):
-    detections = group_by_frame(parse_annotations_from_txt(os.path.join(root, 'mtsc', 'mtsc_tc_mask_rcnn.txt')))
+def plot_tracks(root, global_id=False):
+    if global_id:
+        annotations_file = os.path.join(root, 'gt', 'gt.txt')
+    else:
+        annotations_file = os.path.join(root, 'mtsc', 'mtsc_tc_mask_rcnn.txt')
+    detections = group_by_frame(parse_annotations_from_txt(annotations_file))
     cap = cv2.VideoCapture(os.path.join(root, 'vdo.avi'))
 
     for frame in detections.keys():
@@ -83,7 +87,39 @@ def plot_timeline(root, seq, id):
     plt.show()
 
 
+def plot_sync(root, seq, cam1, cam2):
+    dets = {cam: group_by_frame(parse_annotations_from_txt(os.path.join(root, 'train', seq, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in [cam1, cam2]}
+    cap = {cam: cv2.VideoCapture(os.path.join(root, 'train', seq, cam, 'vdo.avi')) for cam in [cam1, cam2]}
+    fps = {cam: cap[cam].get(cv2.CAP_PROP_FPS) for cam in [cam1, cam2]}
+    timestamp = read_timestamps(os.path.join(root, 'cam_timestamp', f'{seq}.txt'))
+
+    # compute camera overlap in time
+    start_time = max(timestamp[cam1] + list(dets[cam1].keys())[0] / fps[cam1],
+                     timestamp[cam2] + list(dets[cam2].keys())[0] / fps[cam2])
+    end_time = min(timestamp[cam1] + list(dets[cam1].keys())[-1] / fps[cam1],
+                   timestamp[cam2] + list(dets[cam2].keys())[-1] / fps[cam2])
+
+    for t in np.arange(start_time, end_time, min(1/fps[cam1], 1/fps[cam2])):
+        frame1 = int(round((t - timestamp[cam1]) * fps[cam1]))
+        frame2 = int(round((t - timestamp[cam2]) * fps[cam2]))
+        print(f'{t:.3f}, {frame1}, {frame2}')
+
+        cap[cam1].set(cv2.CAP_PROP_POS_FRAMES, frame1)
+        _, img1 = cap[cam1].read()
+        img1 = draw_detections(img1, dets[cam1].get(frame1, []))
+        cv2.imshow(cam1, cv2.resize(img1, (960, 540)))
+
+        cap[cam2].set(cv2.CAP_PROP_POS_FRAMES, frame2)
+        _, img2 = cap[cam2].read()
+        img2 = draw_detections(img2, dets[cam2].get(frame2, []))
+        cv2.imshow(cam2, cv2.resize(img2, (960, 540)))
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+
 if __name__ == '__main__':
-    # plot_tracks('../../../data/AIC20_track3/train/S03/c013')
+    # plot_tracks('../../../data/AIC20_track3/train/S03/c011', global_id=True)
     # plot_speed('../../../data/AIC20_track3/train/S03/c014', 242)
-    plot_timeline('../../../data/AIC20_track3', 'S03', 242)
+    # plot_timeline('../../../data/AIC20_track3', 'S03', 241)
+    plot_sync('../../../data/AIC20_track3/', 'S03', 'c011', 'c013')

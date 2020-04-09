@@ -10,9 +10,8 @@ from tqdm import tqdm
 
 from utils.aicity_reader import parse_annotations_from_txt, group_by_frame, group_by_id
 from tracking.mtmc.encoder import Encoder
-from tracking.mtmc.camera import read_calibration, read_timestamps, warp_bbox
+from tracking.mtmc.camera import read_calibration, read_timestamps, project_bbox
 from evaluation.intersection_over_union import vec_intersecion_over_union
-from tracking.mtmc.plotutils import draw_detections
 
 
 def reid(root, width, height, batch_size):
@@ -82,7 +81,7 @@ def candidates_by_trajectory(root, cam1, cam2, thresh=0.2):
         for id2, track2 in dets[cam2].items():
             # warp boxes from cam2 to cam1
             boxes1 = np.array([det.bbox for det in track1])
-            boxes2 = np.array([warp_bbox(det.bbox, H[cam2], H[cam1]) for det in track2])
+            boxes2 = np.array([project_bbox(det.bbox, H[cam2], H[cam1]) for det in track2])
             iou = vec_intersecion_over_union(boxes1, boxes2)
 
             nz = np.count_nonzero(iou)
@@ -90,49 +89,37 @@ def candidates_by_trajectory(root, cam1, cam2, thresh=0.2):
                 miou = np.sum(iou) / nz
                 if miou > thresh:
                     matches.append((id1, id2, miou))
-    print(sorted(matches, key=lambda x: x[2], reverse=True))
+    return sorted(matches, key=lambda x: x[2], reverse=True)
 
 
 def candidates_by_timestamp(root, seq, cam1, cam2):
-    dets = {cam: group_by_frame(parse_annotations_from_txt(os.path.join(root, 'train', seq, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in [cam1, cam2]}
+    dets = {cam: group_by_id(parse_annotations_from_txt(os.path.join(root, 'train', seq, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in [cam1, cam2]}
     cap = {cam: cv2.VideoCapture(os.path.join(root, 'train', seq, cam, 'vdo.avi')) for cam in [cam1, cam2]}
     fps = {cam: cap[cam].get(cv2.CAP_PROP_FPS) for cam in [cam1, cam2]}
     timestamp = read_timestamps(os.path.join(root, 'cam_timestamp', f'{seq}.txt'))
 
-    # compute camera overlap in time
-    start_time = max(timestamp[cam1] + list(dets[cam1].keys())[0] / fps[cam1],
-                     timestamp[cam2] + list(dets[cam2].keys())[0] / fps[cam2])
-    end_time = min(timestamp[cam1] + list(dets[cam1].keys())[-1] / fps[cam1],
-                   timestamp[cam2] + list(dets[cam2].keys())[-1] / fps[cam2])
+    matches = []
+    for id1, track1 in tqdm(dets[cam1].items()):
+        timestamps1 = sorted([timestamp[cam1] + det.frame / fps[cam1] for det in track1])
+        s1 = timestamps1[0]
+        e1 = timestamps1[-1]
+        for id2, track2 in dets[cam2].items():
+            timestamps2 = sorted([timestamp[cam2] + det.frame / fps[cam2] for det in track2])
+            s2 = timestamps2[0]
+            e2 = timestamps2[-1]
 
-    for t in np.arange(start_time, end_time, min(1/fps[cam1], 1/fps[cam2])):
-        frame1 = int(round((t - timestamp[cam1]) * fps[cam1]))
-        frame2 = int(round((t - timestamp[cam2]) * fps[cam2]))
-        print(f'{t:.3f}, {frame1}, {frame2}')
-
-        cap[cam1].set(cv2.CAP_PROP_POS_FRAMES, frame1)
-        _, img1 = cap[cam1].read()
-        img1 = draw_detections(img1, dets[cam1].get(frame1, []))
-        cv2.imshow(cam1, cv2.resize(img1, (960, 540)))
-
-        cap[cam2].set(cv2.CAP_PROP_POS_FRAMES, frame2)
-        _, img2 = cap[cam2].read()
-        img2 = draw_detections(img2, dets[cam2].get(frame2, []))
-        cv2.imshow(cam2, cv2.resize(img2, (960, 540)))
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            # tracks overlap in time
+            if (s1 <= e2) and (s2 <= e1):
+                inter = min(e1, e2) - max(s1, s2)
+                matches.append((id1, id2, inter))
+    return sorted(matches, key=lambda x: x[2], reverse=True)
 
 
 if __name__ == '__main__':
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--root', type=str, default='../../../data/AIC20_track3/train/S03')
-    # parser.add_argument('--width', type=int, default=128)
-    # parser.add_argument('--height', type=int, default=128)
-    # parser.add_argument('--batch-size', type=int, default=512)
-    # args = parser.parse_args()
-    # reid(args.root, args.width, args.height, args.batch_size)
-
-    # candidates_by_trajectory('../../../data/AIC20_track3/train/S03', 'c013', 'c014')
-
-    candidates_by_timestamp('../../../data/AIC20_track3/', 'S03', 'c013', 'c014')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--root', type=str, default='../../../data/AIC20_track3/train/S03')
+    parser.add_argument('--width', type=int, default=128)
+    parser.add_argument('--height', type=int, default=128)
+    parser.add_argument('--batch-size', type=int, default=512)
+    args = parser.parse_args()
+    reid(args.root, args.width, args.height, args.batch_size)

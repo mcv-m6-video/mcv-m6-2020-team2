@@ -38,7 +38,7 @@ def world2image(lat, lon, H):
     return u, v
 
 
-def warp_bbox(bbox, H1, H2):
+def project_bbox(bbox, H1, H2):
     xtl, ytl, xbr, ybr = bbox
     bl = world2image(*image2world(xtl, ybr, H1), H2)
     br = world2image(*image2world(xbr, ybr, H1), H2)
