@@ -3,13 +3,13 @@ from torch import optim
 from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
-from src.tracking_triplet.dataloader import BalancedBatchSampler, ChallengeDataset
-from src.tracking_triplet.network import EmbeddingNet
-from src.tracking_triplet.loss import OnlineTripletLoss
-from src.tracking_triplet.trainer import fit
+from tracking.metric_learning.dataloader import BalancedBatchSampler, ChallengeDataset
+from tracking.metric_learning import EmbeddingNet
+from tracking.metric_learning import OnlineTripletLoss
+from tracking.metric_learning import fit
 import os
-from src.tracking_triplet.embeddings import extract_embeddings, plot_embeddings
-from src.tracking_triplet.utils import show_batch
+from tracking.metric_learning import extract_embeddings, plot_embeddings
+from tracking.metric_learning import show_batch
 import time
 
 visualize=False

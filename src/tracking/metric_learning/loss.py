@@ -3,8 +3,6 @@ from torch import nn
 import torch.nn.functional as F
 import numpy as np
 
-from src.tracking_triplet.utils import write_triplets_tensorboard
-
 
 class OnlineTripletLoss(nn.Module):
     """

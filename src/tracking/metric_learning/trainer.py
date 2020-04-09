@@ -5,9 +5,7 @@ import torchvision
 from tqdm import tqdm
 import numpy as np
 
-from src.tracking_triplet.utils import matplotlib_imshow, write_triplets_tensorboard
-from mpl_toolkits.axes_grid1 import ImageGrid
-from matplotlib import pyplot as plt
+from tracking.metric_learning import matplotlib_imshow
 
 
 def save_checkpoint(state, is_best, output_path):

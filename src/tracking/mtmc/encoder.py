@@ -13,7 +13,7 @@ from PIL import Image
 from sklearn.metrics.pairwise import paired_distances
 
 from utils.aicity_reader import parse_annotations_from_txt
-from tracking_triplet.network import EmbeddingNet
+from tracking.metric_learning.network import EmbeddingNet
 
 
 class Encoder(nn.Module):
