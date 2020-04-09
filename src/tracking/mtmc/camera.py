@@ -1,5 +1,14 @@
 import numpy as np
 
+CAMERA_LOCATION = {
+    'c010': (42.497670, -90.673415),
+    'c011': (42.496823, -90.673974),
+    'c012': (42.496574, -90.674223),
+    'c013': (42.496411, -90.674445),
+    'c014': (42.495918, -90.674981),
+    'c015': (42.496476, -90.675680)
+}
+
 
 def read_calibration(filename):
     with open(filename, 'r') as f:
@@ -55,10 +64,41 @@ def degrees2meters(lat, lon):
     return lat, lon
 
 
-def estimate_speed(track, fps, w=10):
-    w = min(w, len(track)-1)
-    return np.mean(np.abs(track[w:]-track[:-w]), axis=0) * fps / w
-
-
 def magnitude(x):
     return np.sqrt(np.sum(x**2))
+
+
+def angle(x, y):
+    return np.rad2deg(np.arccos(np.sum(x * y) / (magnitude(x) * magnitude(y))))
+
+
+def angle_to_cam(track, H, cam, num_frames=10):
+    track_3d = []
+    for det in sorted(track, key=lambda det: det.frame):
+        u, v = (det.xtl + det.xbr) / 2, det.ybr
+        lat, lon = image2world(u, v, H)
+        track_3d.append([lat, lon])
+    track_3d = np.array(track_3d)
+
+    num_frames = min(num_frames, len(track_3d))
+    speed_dir = track_3d[-1] - track_3d[-num_frames]
+    cam_dir = np.array(CAMERA_LOCATION[cam]) - track_3d[-num_frames]
+
+    return angle(speed_dir, cam_dir)
+
+
+if __name__ == '__main__':
+    import os
+    from utils.aicity_reader import parse_annotations_from_txt, group_by_id
+
+    cam = 'c012'
+    root = os.path.join('../../../data/AIC20_track3/train/S03', cam)
+    detections = group_by_id(parse_annotations_from_txt(os.path.join(root, 'gt', 'gt.txt')))
+    H = read_calibration(os.path.join(root, 'calibration.txt'))
+
+    id = np.random.choice(list(detections.keys()))
+    track = detections[id]
+    for c in [f'c{c:03d}' for c in range(10, 16)]:
+        if c != cam:
+            a = angle_to_cam(track, H, c)
+            print(f'{c}, {id}, {a:.2f}', 'going' if a < 90 else 'coming')

@@ -5,7 +5,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 from utils.aicity_reader import parse_annotations_from_txt, group_by_frame, group_by_id
-from tracking.mtmc.camera import read_calibration, read_timestamps, image2world, degrees2meters, estimate_speed, magnitude
+from tracking.mtmc.camera import read_calibration, read_timestamps, image2world, degrees2meters, magnitude
 
 
 def draw_detections(img, detections):
@@ -36,6 +36,11 @@ def plot_tracks(root, global_id=False):
         cv2.imshow('tracks', cv2.resize(img, (960, 540)))
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+
+
+def estimate_speed(track, fps, w=10):
+    w = min(w, len(track)-1)
+    return np.mean(np.abs(track[w:]-track[:-w]), axis=0) * fps / w
 
 
 def plot_speed(root, id):
@@ -119,7 +124,7 @@ def plot_sync(root, seq, cam1, cam2):
 
 
 if __name__ == '__main__':
-    # plot_tracks('../../../data/AIC20_track3/train/S03/c011', global_id=True)
+    plot_tracks('../../../data/AIC20_track3/train/S03/c013', global_id=True)
     # plot_speed('../../../data/AIC20_track3/train/S03/c014', 242)
-    # plot_timeline('../../../data/AIC20_track3', 'S03', 241)
-    plot_sync('../../../data/AIC20_track3/', 'S03', 'c011', 'c013')
+    # plot_timeline('../../../data/AIC20_track3', 'S03', 242)
+    # plot_sync('../../../data/AIC20_track3/', 'S03', 'c011', 'c013')
