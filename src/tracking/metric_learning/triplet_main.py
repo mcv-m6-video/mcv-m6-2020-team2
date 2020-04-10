@@ -1,16 +1,18 @@
+import os
+import time
+
 import torch
 from torch import optim
 from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
+
 from tracking.metric_learning.dataloader import BalancedBatchSampler, ChallengeDataset
 from tracking.metric_learning.network import EmbeddingNet
 from tracking.metric_learning.loss import OnlineTripletLoss
 from tracking.metric_learning.trainer import fit
-import os
 from tracking.metric_learning.embeddings import extract_embeddings, plot_embeddings
 from tracking.metric_learning.utils import show_batch
-import time
 
 visualize=False
 images_x_class = 10
@@ -41,8 +43,8 @@ train_n_classes = 100 # len(train_dataset.classes)
 val_n_classes = len(val_dataset.classes)
 print(f"Training batch size: {train_n_classes*images_x_class}")
 print(f"Validation batch size: {val_n_classes*images_x_class}")
-train_batch_sampler = BalancedBatchSampler(train_dataset.targets, n_classes=train_n_classes, n_samples=images_x_class)
-val_batch_sampler = BalancedBatchSampler(val_dataset.targets, n_classes=val_n_classes, n_samples=images_x_class)
+train_batch_sampler = BalancedBatchSampler(train_dataset.targets, train_dataset.imgs, n_classes=train_n_classes, n_samples=images_x_class)
+val_batch_sampler = BalancedBatchSampler(val_dataset.targets, val_dataset.imgs, n_classes=val_n_classes, n_samples=images_x_class)
 
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_sampler=train_batch_sampler, num_workers=n_workers)
 val_loader = torch.utils.data.DataLoader(val_dataset, batch_sampler=val_batch_sampler, num_workers=n_workers)
