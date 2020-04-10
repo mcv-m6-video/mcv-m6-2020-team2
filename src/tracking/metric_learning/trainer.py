@@ -1,11 +1,9 @@
 import os
-
 import torch
 import torchvision
 from tqdm import tqdm
 import numpy as np
-
-from tracking.metric_learning import matplotlib_imshow
+from tracking.metric_learning.utils import write_triplets_tensorboard, matplotlib_imshow
 
 
 def save_checkpoint(state, is_best, output_path):
@@ -42,9 +40,9 @@ def train_epoch(model, train_loader, optimizer, criterion, log_interval, cuda, w
             print(f"\n***{i} Avgloss: {np.mean(losses)} | triplets: {len(triplets)}")
 
         writer.add_scalar('training loss', np.mean(losses), epoch * len(train_loader) + i)
-        if i == 0:
-             write_image_batch_tensorboard(data.cpu(), writer)
-             # write_triplets_tensorboard(triplets, data, writer)
+        if epoch == 1:
+            write_image_batch_tensorboard(data.cpu(), writer)
+            write_triplets_tensorboard(triplets, data, epoch)
 
         i += 1
     return np.mean(losses)
@@ -64,6 +62,8 @@ def val_epoch(model, val_loader, criterion, cuda, writer, epoch):
         losses.append(loss.item())
 
         writer.add_scalar('validation loss', np.mean(losses), epoch * len(val_loader) + i)
+        if epoch == 1:
+            write_image_batch_tensorboard(data.cpu(), writer)
         i += 1
     return np.mean(losses)
 
@@ -81,13 +81,14 @@ def fit(model, epochs, train_loader, val_loader, scheduler, optimizer, criterion
         if scheduler:
             scheduler.step()
 
-        is_best = bool(val_loss < best_loss)
+        if val_loss < best_loss:
+            best_loss = val_loss
+            is_best = True
+        else:
+            is_best = False
+
         save_checkpoint({
             'epoch': 1 + epoch + 1,
             'state_dict': model.state_dict(),
             'loss': val_loss
         }, is_best, output_path)
-        if is_best:
-            best_loss = val_loss
-
-

@@ -1,7 +1,10 @@
+import time
+
 import torch
 from torch import nn
 import torch.nn.functional as F
 import numpy as np
+from tqdm import tqdm
 
 
 class OnlineTripletLoss(nn.Module):
@@ -23,18 +26,16 @@ class OnlineTripletLoss(nn.Module):
             embeddings = embeddings.cuda()
             triplets = triplets.cuda()
 
-        ap_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 1]]).pow(2).sum(1) # anchor - positive
-        an_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 2]]).pow(2).sum(1) # achor - negative
+        ap_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 1]]).pow(2).sum(1)  # anchor - positive
+        an_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 2]]).pow(2).sum(1)  # achor - negative
         losses = F.relu(ap_distances - an_distances + self.margin)
 
         return losses.mean(), triplets
-
 
     def _pair_wise_distance(self, vectors):
         return -2 * vectors.mm(torch.t(vectors)) + \
                vectors.pow(2).sum(dim=1).view(1, -1) + \
                vectors.pow(2).sum(dim=1).view(-1, 1)
-
 
     def _get_triplets(self, embeddings, targets):
         """
@@ -57,8 +58,9 @@ class OnlineTripletLoss(nn.Module):
                 # Get distances to all possible positives and select the one with maximum distance
                 hardest_positive = positive_indices[np.argmax([distance_matrix[anchor_positive, pair_positive] for pair_positive in positive_indices])]
 
-                # Get distances to all possible negatives and select the one with minimum distance
-                hardest_negative= negative_indices[np.argmin([distance_matrix[anchor_positive, pair_negative] for pair_negative in negative_indices])]
+                # Get distances for all pairs and then delete the ones corresponding to positive indices. Compute minimum distance
+                hardest_negative = negative_indices[np.argmin(np.delete(distance_matrix[anchor_positive, :].detach().numpy(), positive_indices))]
+
 
                 triplets.append([anchor_positive, hardest_positive, hardest_negative])
 

@@ -1,7 +1,10 @@
+import os
+
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 from  matplotlib.gridspec import GridSpec
 import numpy as np
+import torch
 
 def show_batch(dataloader, n_view=10, n_cars=10):
     fig = plt.figure(figsize=(20, 20))
@@ -24,7 +27,7 @@ def matplotlib_imshow(img):
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
 
-def write_triplets_tensorboard(triplets, data, writer):
+def write_triplets_tensorboard(triplets, data, epoch):
     print(len(triplets))
     triplets = triplets[:15]
 
@@ -34,9 +37,16 @@ def write_triplets_tensorboard(triplets, data, writer):
 
     for i in range(len(triplets)*3):
         plt.subplot(gs[i])
-        image = np.transpose(data[flat_list[i]].numpy(), (1, 2, 0))
+        if torch.cuda.is_available():
+            image = np.transpose(data[flat_list[i]].cpu().numpy(), (1, 2, 0))
+        else:
+            image = np.transpose(data[flat_list[i]].numpy(), (1, 2, 0))
+
         plt.imshow(image)
         plt.axis('off')
 
+    if not os.path.exists("../triplets/"):
+        os.makedirs("../triplets/")
     plt.show()
+    # plt.savefig(f"../triplets/triplets_{epoch}.png")
     plt.axis('off')
