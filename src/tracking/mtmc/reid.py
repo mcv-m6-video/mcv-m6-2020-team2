@@ -139,7 +139,7 @@ def reid_spatiotemporal(root, seq, metric='euclidean', thresh=0.1):
                                 if embd1 is None:
                                     embd1 = get_track_embedding(track1, cap[cam1], encoder)
                                 embd2 = get_track_embedding(track2, cap[cam2], encoder)
-                                dist = paired_distances([embd1], [embd2], metric)
+                                dist = paired_distances([embd1], [embd2], metric)[0]
                                 if dist < thresh:  # TODO: improve this
                                     matches.append(((cam1, id1), (cam2, id2)))
 
