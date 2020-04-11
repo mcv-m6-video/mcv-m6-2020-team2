@@ -93,7 +93,55 @@ def get_track_embedding(track, cap, encoder, max_views=32):
     return embedding
 
 
-def reid_spatiotemporal(root, seq, metric='euclidean', thresh=0.1):
+def get_track_embeddings(tracks_by_cam, cap, encoder, batch_size=512):
+    embeddings = defaultdict(dict)
+    for cam in tqdm(tracks_by_cam, desc='Computing embeddings', leave=True):
+        # process camera detections frame by frame
+        detections = [det for track in tracks_by_cam[cam].values() for det in track]
+        detections_by_frame = group_by_frame(detections)
+
+        cap[cam].set(cv2.CAP_PROP_POS_FRAMES, 0)
+        length = int(cap[cam].get(cv2.CAP_PROP_FRAME_COUNT))
+
+        track_embeddings = defaultdict(list)
+        batch = []
+        ids = []
+        for _ in tqdm(range(length), desc=f'cam={cam}', leave=False):
+            # read frame
+            frame = int(cap[cam].get(cv2.CAP_PROP_POS_FRAMES))
+            _, img = cap[cam].read()
+            if frame not in detections_by_frame:
+                continue
+
+            # crop and accumulate frame detections
+            for det in detections_by_frame[frame]:
+                crop = img[int(det.ytl):int(det.ybr), int(det.xtl):int(det.xbr)]
+                if crop.size > 0:
+                    batch.append(crop)
+                    ids.append(det.id)
+
+            # compute embeddings if enough detections in batch
+            if len(batch) >= batch_size:
+                embds = encoder.get_embeddings(batch)
+                for id, embd in zip(ids, embds):
+                    track_embeddings[id].append(embd)
+                batch.clear()
+                ids.clear()
+
+        # compute embeddings of last batch
+        if len(batch) > 0:
+            embds = encoder.get_embeddings(batch)
+            for id, embd in zip(ids, embds):
+                track_embeddings[id].append(embd)
+
+        # combine track embeddings by averaging them
+        for id, embds in track_embeddings.items():
+            embeddings[cam][id] = np.stack(embds).mean(axis=0)
+
+    return embeddings
+
+
+def reid_spatiotemporal(root, seq, metric='euclidean', thresh=10):
     seq_path = os.path.join(root, 'train', seq)
     cams = set(os.listdir(seq_path))
 
@@ -113,32 +161,27 @@ def reid_spatiotemporal(root, seq, metric='euclidean', thresh=0.1):
     encoder = encoder.cuda()
     encoder.eval()
 
+    # precompute all embeddings
+    embeddings = get_track_embeddings(tracks_by_cam, cap, encoder)
+
     matches = []
     for cam1 in cams:
-        pbar1 = tqdm(tracks_by_cam[cam1].items(), desc=f'cam1={cam1}', leave=True)
-        for id1, track1 in pbar1:
-            pbar1.set_postfix({'id': id1})
-
+        for id1, track1 in tracks_by_cam[cam1].items():
             track1.sort(key=lambda det: det.frame)
             dir1 = bbox2gps(track1[-1].bbox, H[cam1]) - bbox2gps(track1[-min(int(fps[cam1]), len(track1)-1)].bbox, H[cam1])
             range1 = time_range(track1, timestamp[cam1], fps[cam1])
-            embd1 = None
 
             for cam2 in cams-{cam1}:
                 if angle_to_cam(track1, H[cam1], cam2) < 45:  # going towards the camera
-                    pbar2 = tqdm(tracks_by_cam[cam2].items(), desc=f'cam2={cam2}', leave=False)
-                    for id2, track2 in pbar2:
-                        pbar2.set_postfix({'id': id2})
-
+                    for id2, track2 in tracks_by_cam[cam2].items():
                         track2.sort(key=lambda det: det.frame)
                         dir2 = bbox2gps(track2[min(int(fps[cam2]), len(track2)-1)].bbox, H[cam2]) - bbox2gps(track2[0].bbox, H[cam2])
                         range2 = time_range(track2, timestamp[cam2], fps[cam2])
 
                         if range2[0] >= range1[0]:  # car is detected later in second camera
                             if angle(dir1, dir2) < 15:  # tracks have similar direction
-                                if embd1 is None:
-                                    embd1 = get_track_embedding(track1, cap[cam1], encoder)
-                                embd2 = get_track_embedding(track2, cap[cam2], encoder)
+                                embd1 = embeddings[cam1][id1]
+                                embd2 = embeddings[cam2][id2]
                                 dist = paired_distances([embd1], [embd2], metric)[0]
                                 if dist < thresh:  # TODO: improve this
                                     matches.append(((cam1, id1), (cam2, id2)))
