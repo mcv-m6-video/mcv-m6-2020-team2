@@ -1,20 +1,19 @@
 import os
-import argparse
 from collections import defaultdict
 import pprint
 
 import numpy as np
 import cv2
 from sklearn.cluster import MeanShift
+from sklearn.metrics.pairwise import paired_distances
 from tqdm import tqdm
 
 from utils.aicity_reader import parse_annotations_from_txt, group_by_frame, group_by_id
 from tracking.mtmc.encoder import Encoder
-from tracking.mtmc.camera import read_calibration, read_timestamps, project_bbox
-from evaluation.intersection_over_union import vec_intersecion_over_union
+from tracking.mtmc.camera import read_calibration, read_timestamps, angle_to_cam, bbox2gps, time_range, angle
 
 
-def reid(root, width, height, batch_size):
+def reid_exhaustive(root, width, height, batch_size):
     encoder = Encoder()
     encoder = encoder.cuda()
     encoder.eval()
@@ -72,54 +71,81 @@ def reid(root, width, height, batch_size):
     pprint.pprint(clusters)
 
 
-def candidates_by_trajectory(root, cam1, cam2, thresh=0.2):
-    dets = {cam: group_by_id(parse_annotations_from_txt(os.path.join(root, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in [cam1, cam2]}
-    H = {cam: read_calibration(os.path.join(root, cam, 'calibration.txt')) for cam in [cam1, cam2]}
-
-    matches = []
-    for id1, track1 in tqdm(dets[cam1].items()):
-        for id2, track2 in dets[cam2].items():
-            # warp boxes from cam2 to cam1
-            boxes1 = np.array([det.bbox for det in track1])
-            boxes2 = np.array([project_bbox(det.bbox, H[cam2], H[cam1]) for det in track2])
-            iou = vec_intersecion_over_union(boxes1, boxes2)
-
-            nz = np.count_nonzero(iou)
-            if nz > 0:
-                miou = np.sum(iou) / nz
-                if miou > thresh:
-                    matches.append((id1, id2, miou))
-    return sorted(matches, key=lambda x: x[2], reverse=True)
+def is_static(track, thresh=50):
+    std = np.std([det.center for det in track], axis=0)
+    return np.all(std < thresh)
 
 
-def candidates_by_timestamp(root, seq, cam1, cam2):
-    dets = {cam: group_by_id(parse_annotations_from_txt(os.path.join(root, 'train', seq, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in [cam1, cam2]}
-    cap = {cam: cv2.VideoCapture(os.path.join(root, 'train', seq, cam, 'vdo.avi')) for cam in [cam1, cam2]}
-    fps = {cam: cap[cam].get(cv2.CAP_PROP_FPS) for cam in [cam1, cam2]}
+def get_track_embedding(track, cap, encoder, max_views=32):
+    batch = []
+    for det in np.random.permutation(track)[:max_views]:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, det.frame)
+        ret, img = cap.read()
+        img = img[int(det.ytl):int(det.ybr), int(det.xtl):int(det.xbr)]
+        if img.size > 0:
+            batch.append(img)
+
+    embeddings = encoder.get_embeddings(batch)
+
+    # combine track embeddings by averaging them
+    embedding = embeddings.mean(axis=0)
+
+    return embedding
+
+
+def reid_spatiotemporal(root, seq, metric='euclidean', thresh=0.1):
+    seq_path = os.path.join(root, 'train', seq)
+    cams = set(os.listdir(seq_path))
+
+    # read data
+    tracks_by_cam = {cam: group_by_id(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in cams}
+    cap = {cam: cv2.VideoCapture(os.path.join(seq_path, cam, 'vdo.avi')) for cam in cams}
+    fps = {cam: cap[cam].get(cv2.CAP_PROP_FPS) for cam in cams}
+    H = {cam: read_calibration(os.path.join(seq_path, cam, 'calibration.txt')) for cam in cams}
     timestamp = read_timestamps(os.path.join(root, 'cam_timestamp', f'{seq}.txt'))
 
-    matches = []
-    for id1, track1 in tqdm(dets[cam1].items()):
-        timestamps1 = sorted([timestamp[cam1] + det.frame / fps[cam1] for det in track1])
-        s1 = timestamps1[0]
-        e1 = timestamps1[-1]
-        for id2, track2 in dets[cam2].items():
-            timestamps2 = sorted([timestamp[cam2] + det.frame / fps[cam2] for det in track2])
-            s2 = timestamps2[0]
-            e2 = timestamps2[-1]
+    # filter out static tracks
+    for cam in cams:
+        tracks_by_cam[cam] = dict(filter(lambda x: not is_static(x[1]), tracks_by_cam[cam].items()))
 
-            # tracks overlap in time
-            if (s1 <= e2) and (s2 <= e1):
-                inter = min(e1, e2) - max(s1, s2)
-                matches.append((id1, id2, inter))
-    return sorted(matches, key=lambda x: x[2], reverse=True)
+    # initialize encoder
+    encoder = Encoder()
+    encoder = encoder.cuda()
+    encoder.eval()
+
+    matches = []
+    for cam1 in cams:
+        pbar1 = tqdm(tracks_by_cam[cam1].items(), desc=f'cam1={cam1}', leave=True)
+        for id1, track1 in pbar1:
+            pbar1.set_postfix({'id': id1})
+
+            track1.sort(key=lambda det: det.frame)
+            dir1 = bbox2gps(track1[-1].bbox, H[cam1]) - bbox2gps(track1[-min(int(fps[cam1]), len(track1)-1)].bbox, H[cam1])
+            range1 = time_range(track1, timestamp[cam1], fps[cam1])
+            embd1 = None
+
+            for cam2 in cams-{cam1}:
+                if angle_to_cam(track1, H[cam1], cam2) < 45:  # going towards the camera
+                    pbar2 = tqdm(tracks_by_cam[cam2].items(), desc=f'cam2={cam2}', leave=False)
+                    for id2, track2 in pbar2:
+                        pbar2.set_postfix({'id': id2})
+
+                        track2.sort(key=lambda det: det.frame)
+                        dir2 = bbox2gps(track2[min(int(fps[cam2]), len(track2)-1)].bbox, H[cam2]) - bbox2gps(track2[0].bbox, H[cam2])
+                        range2 = time_range(track2, timestamp[cam2], fps[cam2])
+
+                        if range2[0] >= range1[0]:  # car is detected later in second camera
+                            if angle(dir1, dir2) < 15:  # tracks have similar direction
+                                if embd1 is None:
+                                    embd1 = get_track_embedding(track1, cap[cam1], encoder)
+                                embd2 = get_track_embedding(track2, cap[cam2], encoder)
+                                dist = paired_distances([embd1], [embd2], metric)
+                                if dist < thresh:  # TODO: improve this
+                                    matches.append(((cam1, id1), (cam2, id2)))
+
+    print(matches)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--root', type=str, default='../../../data/AIC20_track3/train/S03')
-    parser.add_argument('--width', type=int, default=128)
-    parser.add_argument('--height', type=int, default=128)
-    parser.add_argument('--batch-size', type=int, default=512)
-    args = parser.parse_args()
-    reid(args.root, args.width, args.height, args.batch_size)
+    # reid_exhaustive('../../../data/AIC20_track3/train/S03', width=128, height=128, batch_size=512)
+    reid_spatiotemporal('../../../data/AIC20_track3', 'S03')

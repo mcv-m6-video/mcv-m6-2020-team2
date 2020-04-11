@@ -124,7 +124,7 @@ def plot_sync(root, seq, cam1, cam2):
 
 
 if __name__ == '__main__':
-    plot_tracks('../../../data/AIC20_track3/train/S03/c013', global_id=True)
+    plot_tracks('../../../data/AIC20_track3/train/S03/c011', global_id=False)
     # plot_speed('../../../data/AIC20_track3/train/S03/c014', 242)
     # plot_timeline('../../../data/AIC20_track3', 'S03', 242)
     # plot_sync('../../../data/AIC20_track3/', 'S03', 'c011', 'c013')

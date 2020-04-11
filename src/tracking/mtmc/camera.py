@@ -57,6 +57,13 @@ def project_bbox(bbox, H1, H2):
     return new_bbox
 
 
+def bbox2gps(bbox, H):
+    xtl, ytl, xbr, ybr = bbox
+    xc = (xtl + xbr) / 2
+    lat, lon = image2world(xc, ybr, H)
+    return np.array([lat, lon])
+
+
 def degrees2meters(lat, lon):
     # https://en.wikipedia.org/wiki/Geographic_coordinate_system#Length_of_a_degree
     lat = 111132.92 - 559.82 * np.cos(2*lat) + 1.175 * np.cos(4*lat) - 0.0023 * np.cos(6*lat)
@@ -73,18 +80,24 @@ def angle(x, y):
 
 
 def angle_to_cam(track, H, cam, num_frames=10):
-    track_3d = []
-    for det in sorted(track, key=lambda det: det.frame):
-        u, v = (det.xtl + det.xbr) / 2, det.ybr
-        lat, lon = image2world(u, v, H)
-        track_3d.append([lat, lon])
-    track_3d = np.array(track_3d)
+    """Track should be sorted by frame."""
+    # track.sort(key=lambda det: det.frame)
 
-    num_frames = min(num_frames, len(track_3d))
-    speed_dir = track_3d[-1] - track_3d[-num_frames]
-    cam_dir = np.array(CAMERA_LOCATION[cam]) - track_3d[-num_frames]
+    num_frames = min(num_frames, len(track))
+    speed_dir = bbox2gps(track[-1].bbox, H) - bbox2gps(track[-num_frames].bbox, H)
+    cam_dir = np.array(CAMERA_LOCATION[cam]) - bbox2gps(track[-num_frames].bbox, H)
 
     return angle(speed_dir, cam_dir)
+
+
+def time_range(track, timestamp, fps):
+    """Track should be sorted by frame."""
+    # track.sort(key=lambda det: det.frame)
+
+    start_time = timestamp + track[0].frame / fps
+    end_time = timestamp + track[-1].frame / fps
+
+    return start_time, end_time
 
 
 if __name__ == '__main__':
@@ -97,7 +110,7 @@ if __name__ == '__main__':
     H = read_calibration(os.path.join(root, 'calibration.txt'))
 
     id = np.random.choice(list(detections.keys()))
-    track = detections[id]
+    track = sorted(detections[id], key=lambda det: det.frame)
     for c in [f'c{c:03d}' for c in range(10, 16)]:
         if c != cam:
             a = angle_to_cam(track, H, c)
