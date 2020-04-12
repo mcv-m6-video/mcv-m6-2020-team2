@@ -17,11 +17,15 @@ from tracking.metric_learning.network import EmbeddingNet
 
 
 class Encoder(nn.Module):
-    def __init__(self, url=None):
+    def __init__(self, url=None, n_dims=256, cuda=True):
         super().__init__()
         if url:
-            self.model = EmbeddingNet(num_dims=256)
-            self.model.load_state_dict(load_state_dict_from_url(url)['state_dict'])
+            self.model = EmbeddingNet(num_dims=n_dims)
+            if cuda:
+                self.model.load_state_dict(load_state_dict_from_url(url)['state_dict'])
+            else:
+                self.model.load_state_dict(load_state_dict_from_url(url, map_location=torch.device('cpu'))['state_dict'])
+
         else:
             self.model = nn.Sequential(
                 *list(models.mobilenet_v2(pretrained=True).features.children())[:-1],
@@ -33,12 +37,18 @@ class Encoder(nn.Module):
 
     def get_embedding(self, img):
         with torch.no_grad():
-            img = self.transform(img).unsqueeze(0).cuda()
+            if torch.cuda.is_available():
+                img = self.transform(img).unsqueeze(0).cuda()
+            else:
+                img = self.transform(img).unsqueeze(0)
             return self.forward(img).squeeze().cpu().numpy()
 
     def get_embeddings(self, batch):
         with torch.no_grad():
-            batch = torch.stack([self.transform(img) for img in batch]).cuda()
+            if torch.cuda.is_available():
+                batch = torch.stack([self.transform(img) for img in batch]).cuda()
+            else:
+                batch = torch.stack([self.transform(img) for img in batch])
             return self.forward(batch).squeeze().cpu().numpy()
 
     @staticmethod
