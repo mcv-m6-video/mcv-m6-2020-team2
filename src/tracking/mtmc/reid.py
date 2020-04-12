@@ -8,6 +8,7 @@ import torch
 from sklearn.cluster import DBSCAN
 from sklearn.metrics.pairwise import paired_distances
 from tqdm import tqdm
+import pickle
 
 from evaluation.idf1 import get_idf1_from_dir
 from utils.aicity_reader import parse_annotations_from_txt, group_by_frame, group_by_id, group_in_tracks
@@ -17,7 +18,7 @@ from tracking.mtmc.camera import read_calibration, read_timestamps, angle_to_cam
 cuda_flag = torch.cuda.is_available()
 
 
-def generate_file(tracks_by_cam, gen_path="../results/reid/S03/"):
+def generate_file(tracks_by_cam, gen_path="../../../results/reid/S03/"):
     for cam_id, all_tracks_in_camera in tracks_by_cam.items():
 
         camera_path = os.path.join(gen_path, cam_id)
@@ -104,6 +105,10 @@ def get_track_embeddings(tracks_by_cam, cap, encoder, save_path, batch_size=512)
         for id, embds in track_embeddings.items():
             embeddings[cam][id] = np.stack(embds).mean(axis=0)
 
+    # save embeddings
+    with open(save_path, 'wb') as f:
+        pickle.dump(embeddings, f)
+
     return embeddings
 
 def get_matches_by_clustering(candidates, embeddings, cam1, id1):
@@ -116,7 +121,7 @@ def get_matches_by_clustering(candidates, embeddings, cam1, id1):
             matches.append(((cam1, id1), (cam2, id2)))
     print(matches)
 
-def reid_exhaustive(root):
+def reid_exhaustive(root, save_path):
     cams = set(os.listdir(root))
 
     # read data
@@ -133,7 +138,7 @@ def reid_exhaustive(root):
     encoder.eval()
 
     # compute all embeddings
-    embeddings = get_track_embeddings(tracks_by_cam, cap, encoder)
+    embeddings = get_track_embeddings(tracks_by_cam, cap, encoder, save_path)
     embeddings = {(cam, id): embd for cam in embeddings for id, embd in embeddings[cam].items()}
 
     # cluster embeddings to associate tracks
@@ -156,6 +161,8 @@ def reid_spatiotemporal(root, seq, save_path, metric='euclidean', thresh=10):
     fps = {cam: cap[cam].get(cv2.CAP_PROP_FPS) for cam in cams}
     H = {cam: read_calibration(os.path.join(seq_path, cam, 'calibration.txt')) for cam in cams}
     timestamp = read_timestamps(os.path.join(root, 'cam_timestamp', f'{seq}.txt'))
+    file_embeddings = os.path.join('../../../results/week5', f'all_embeddings_seq{seq}.pkl')
+    load_embeddings = False
 
     # filter out static tracks
     for cam in cams:
@@ -167,8 +174,13 @@ def reid_spatiotemporal(root, seq, save_path, metric='euclidean', thresh=10):
         encoder = encoder.cuda()
     encoder.eval()
 
-    # compute all embeddings
-    embeddings = get_track_embeddings(tracks_by_cam, cap, encoder, "")
+    # load all embeddings
+    if load_embeddings:
+        with open(file_embeddings, 'rb') as f:
+            embeddings = pickle.load(f)
+    else:
+        # compute all embeddings
+        embeddings = get_track_embeddings(tracks_by_cam, cap, encoder, file_embeddings)
 
     matches = []
     for cam1 in cams:
@@ -230,9 +242,8 @@ def reid_spatiotemporal(root, seq, save_path, metric='euclidean', thresh=10):
             next_track = track_to_propagate.get_next_track()
         track_count+=1
 
-    generate_file(tracks_by_cam)
+    generate_file(result_reid)
 
-    return result_reid
 
 if __name__ == '__main__':
     # reid_exhaustive('../../../data/AIC20_track3/train/S03')
