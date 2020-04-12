@@ -4,13 +4,36 @@ import pprint
 
 import numpy as np
 import cv2
+import torch
 from sklearn.cluster import DBSCAN
 from sklearn.metrics.pairwise import paired_distances
 from tqdm import tqdm
 
+from evaluation.idf1 import get_idf1_from_dir
 from utils.aicity_reader import parse_annotations_from_txt, group_by_frame, group_by_id, group_in_tracks
 from tracking.mtmc.encoder import Encoder
 from tracking.mtmc.camera import read_calibration, read_timestamps, angle_to_cam, bbox2gps, time_range, angle
+
+cuda_flag = torch.cuda.is_available()
+
+
+def generate_file(tracks_by_cam, gen_path="../results/reid/S03/"):
+    for cam_id, all_tracks_in_camera in tracks_by_cam.items():
+
+        camera_path = os.path.join(gen_path, cam_id)
+        if not os.path.exists(camera_path):
+            os.makedirs(camera_path)
+        filename = os.path.join(camera_path, 'results.txt')
+
+        lines = []
+        for track_id, track_object in all_tracks_in_camera.items():
+            for det in track_object.track:
+                lines.append((det.frame, track_object.id, det.xtl, det.ytl, det.width, det.height, det.score, "-1", "-1", "-1"))
+
+        lines = sorted(lines, key=lambda x: x[0])
+        with open(filename, "w") as file:
+            for line in lines:
+                file.write(",".join(list(map(str, line)))+"\n")
 
 
 def is_static(track, thresh=50):
@@ -39,7 +62,8 @@ def get_track_embeddings(tracks_by_cam, cap, encoder, save_path, batch_size=512)
     embeddings = defaultdict(dict)
     for cam in tqdm(tracks_by_cam, desc='Computing embeddings', leave=True):
         # process camera detections frame by frame
-        detections = [det for track in tracks_by_cam[cam].values() for det in track]
+        detections = [det for track in tracks_by_cam[cam].values() for det in track.track]
+        # detections = [det for track in tracks_by_cam[cam].values() for det in track]
         detections_by_frame = group_by_frame(detections)
 
         cap[cam].set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -123,10 +147,10 @@ def reid_exhaustive(root):
 
 def reid_spatiotemporal(root, seq, save_path, metric='euclidean', thresh=10):
     seq_path = os.path.join(root, 'train', seq)
-    cams = set(os.listdir(seq_path))
+    cams = set([f for f in os.listdir(seq_path) if not f.startswith('.')])
 
     # read data
-    #tracks_by_cam = {cam: group_by_id(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in cams}
+    # tracks_by_cam = {cam: group_by_id(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in cams}
     tracks_by_cam = {cam: group_in_tracks(parse_annotations_from_txt(os.path.join(seq_path, cam, 'gt', 'gt.txt')), cam) for cam in cams}
     cap = {cam: cv2.VideoCapture(os.path.join(seq_path, cam, 'vdo.avi')) for cam in cams}
     fps = {cam: cap[cam].get(cv2.CAP_PROP_FPS) for cam in cams}
@@ -138,12 +162,13 @@ def reid_spatiotemporal(root, seq, save_path, metric='euclidean', thresh=10):
         tracks_by_cam[cam] = dict(filter(lambda x: not is_static(x[1]), tracks_by_cam[cam].items()))
 
     # initialize encoder
-    encoder = Encoder(url='https://drive.google.com/uc?export=download&id=1DH-2KhzOMBmrdslhcavF3UcKu4qbEg9r')
-    encoder = encoder.cuda()
+    encoder = Encoder(url='https://drive.google.com/uc?export=download&id=1DH-2KhzOMBmrdslhcavF3UcKu4qbEg9r', n_dims=256, cuda=cuda_flag)
+    if cuda_flag:
+        encoder = encoder.cuda()
     encoder.eval()
 
     # compute all embeddings
-    embeddings = get_track_embeddings(tracks_by_cam, cap, encoder, file_embeddings)
+    embeddings = get_track_embeddings(tracks_by_cam, cap, encoder, "")
 
     matches = []
     for cam1 in cams:
@@ -176,7 +201,7 @@ def reid_spatiotemporal(root, seq, save_path, metric='euclidean', thresh=10):
                                         match = (cam2, track2)
                                         min_dist = dist
 
-            #matches = get_matches_by_clustering(candidates, embeddings, cam1, id1) #TODO Remove when no longer util
+            # matches = get_matches_by_clustering(candidates, embeddings, cam1, id1) #TODO Remove when no longer util
 
             # merge matched tracks
             if match:
@@ -205,8 +230,13 @@ def reid_spatiotemporal(root, seq, save_path, metric='euclidean', thresh=10):
             next_track = track_to_propagate.get_next_track()
         track_count+=1
 
+    generate_file(tracks_by_cam)
+
     return result_reid
 
 if __name__ == '__main__':
     # reid_exhaustive('../../../data/AIC20_track3/train/S03')
-    reid_spatiotemporal('../../../data/AIC20_track3', 'S03')
+    reid_spatiotemporal('../../../data/AIC20_track3', 'S03', "")
+
+    idf = get_idf1_from_dir("../../../results/reid", "S03", "results", gt_dir='../../../data/AIC20_track3/train')
+    print(idf)

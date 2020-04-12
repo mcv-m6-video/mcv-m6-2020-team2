@@ -97,7 +97,7 @@ class AICityChallengeAnnotationReader:
         self.annotations = parse_annotations(path)
         self.classes = np.unique([det.label for det in self.annotations])
 
-    def get_annotations(self, classes=None, noise_params=None, group_by_frame=True, only_not_parked=False):
+    def get_annotations(self, classes=None, noise_params=None, do_group_by_frame=True, only_not_parked=False):
         """
         Returns:
             detections: {frame: [Detection,...]} if group_by_frame=True
@@ -123,7 +123,7 @@ class AICityChallengeAnnotationReader:
                 else:
                     detections.append(d)
 
-        if group_by_frame:
+        if do_group_by_frame:
             detections = group_by_frame(detections)
 
         return detections
