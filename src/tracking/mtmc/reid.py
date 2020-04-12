@@ -1,7 +1,8 @@
 import os
+import pickle
 from collections import defaultdict
 import pprint
-
+import time
 import numpy as np
 import cv2
 import torch
@@ -29,7 +30,7 @@ def generate_file(tracks_by_cam, gen_path="../../../results/reid/S03/"):
         lines = []
         for track_id, track_object in all_tracks_in_camera.items():
             for det in track_object.track:
-                lines.append((det.frame, track_object.id, det.xtl, det.ytl, det.width, det.height, det.score, "-1", "-1", "-1"))
+                lines.append((det.frame, track_object.id, int(det.xtl), int(det.ytl), int(det.width), int(det.height), det.score, "-1", "-1", "-1"))
 
         lines = sorted(lines, key=lambda x: x[0])
         with open(filename, "w") as file:
@@ -152,7 +153,7 @@ def reid_exhaustive(root, save_path):
 
 def reid_spatiotemporal(root, seq, save_path, metric='euclidean', thresh=10):
     seq_path = os.path.join(root, 'train', seq)
-    cams = set([f for f in os.listdir(seq_path) if not f.startswith('.')])
+    cams = sorted([f for f in os.listdir(seq_path) if not f.startswith('.')])
 
     # read data
     # tracks_by_cam = {cam: group_by_id(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in cams}
@@ -162,7 +163,7 @@ def reid_spatiotemporal(root, seq, save_path, metric='euclidean', thresh=10):
     H = {cam: read_calibration(os.path.join(seq_path, cam, 'calibration.txt')) for cam in cams}
     timestamp = read_timestamps(os.path.join(root, 'cam_timestamp', f'{seq}.txt'))
     file_embeddings = os.path.join('../../../results/week5', f'all_embeddings_seq{seq}.pkl')
-    load_embeddings = False
+    load_embeddings = True
 
     # filter out static tracks
     for cam in cams:
@@ -182,7 +183,7 @@ def reid_spatiotemporal(root, seq, save_path, metric='euclidean', thresh=10):
         # compute all embeddings
         embeddings = get_track_embeddings(tracks_by_cam, cap, encoder, file_embeddings)
 
-    matches = []
+    # matches = []
     for cam1 in cams:
         for id1, track1 in tracks_by_cam[cam1].items():
             dets1 = track1.get_track()
@@ -193,8 +194,11 @@ def reid_spatiotemporal(root, seq, save_path, metric='euclidean', thresh=10):
 
             min_dist = 100
             match = None
-            candidates = []
-            for cam2 in cams-{cam1}:
+            # candidates = []
+            for cam2 in cams:
+                if cam2 == cam1:
+                    continue
+
                 if angle_to_cam(dets1, H[cam1], cam2) < 45:  # going towards the camera
                     for id2, track2 in tracks_by_cam[cam2].items():
                         dets2 = track2.get_track()
@@ -206,21 +210,20 @@ def reid_spatiotemporal(root, seq, save_path, metric='euclidean', thresh=10):
                             if angle(dir1, dir2) < 15:  # tracks have similar direction
                                 if not track2.get_previous_track() and not track1.get_next_track():
                                     # track has not been previously matched to another track from the same direction
-                                    candidates.append((cam2, id2)) #TODO Remove when no longer util
+                                    # candidates.append((cam2, id2))  # TODO Remove when no longer util
                                     emb2 = embeddings[cam2][id2]
-                                    dist = paired_distances([emb1], [emb2], metric)[0]
+                                    dist = paired_distances([emb1], [emb2], metric).squeeze()
                                     if dist < min_dist:
                                         match = (cam2, track2)
                                         min_dist = dist
 
-            # matches = get_matches_by_clustering(candidates, embeddings, cam1, id1) #TODO Remove when no longer util
+            # matches = get_matches_by_clustering(candidates, embeddings, cam1, id1) # TODO Remove when no longer util
 
             # merge matched tracks
             if match:
                 tracks_by_cam[cam1][id1].set_next_track((match[0],match[1].id))
                 tracks_by_cam[match[0]][match[1].id].set_previous_track((cam1,id1))
 
-    # search starting tracks (tracks with no prior track)
     starting_tracks = []
     for cam, tracks in tracks_by_cam.items():
         for id, track in tracks.items():
@@ -234,6 +237,7 @@ def reid_spatiotemporal(root, seq, save_path, metric='euclidean', thresh=10):
         track.id = track_count
         result_reid[track.camera][track_count] = track
         next_track = track.get_next_track()
+
         while(next_track):
             cam_next, id_next = next_track
             track_to_propagate = tracks_by_cam[cam_next][id_next]
@@ -249,5 +253,7 @@ if __name__ == '__main__':
     # reid_exhaustive('../../../data/AIC20_track3/train/S03')
     reid_spatiotemporal('../../../data/AIC20_track3', 'S03', "")
 
+
     idf = get_idf1_from_dir("../../../results/reid", "S03", "results", gt_dir='../../../data/AIC20_track3/train')
     print(idf)
+
