@@ -1,42 +1,69 @@
-import torch
+import io
+
 import numpy as np
-import random
-from sklearn.manifold import TSNE
-from tqdm import tqdm
+import torch
+from PIL import Image
 from matplotlib import pyplot as plt
-
-
-def _generate_colors(number_colors):
-    get_colors = lambda n: list(map(lambda i: f"#{random.randint(0, 0xFFFFFF):06x}",range(n)))
-    return (get_colors(number_colors))
-
-def plot_embeddings(dataset, embeddings, targets, filename, max_classes=10, title=''):
-    print("Computing TSNE")
-    embeddings = TSNE(n_components=2).fit_transform(embeddings)
-
-    plt.figure(figsize=(10,10))
-    selected_classes = np.random.choice(dataset.classes, max_classes)
-    for cls in tqdm(selected_classes, desc=f'Preparing plot. Saved to {filename}'):
-        i = dataset.class_to_idx[cls]
-        inds = np.where(targets==i)[0]
-        plt.scatter(embeddings[inds,0], embeddings[inds,1], alpha=0.5)
-
-    plt.legend(dataset.classes)
-    plt.title(title)
-    plt.savefig(filename)
+from sklearn.manifold import TSNE
+from torchvision.transforms.functional import to_tensor
 
 
 @torch.no_grad()
-def extract_embeddings(dataloader, model, cuda):
+def extract_embeddings(model, loader):
     model.eval()
-    embeddings = []
-    labels = []
-    for images, target in tqdm(dataloader, desc='Generating embedding'):
-        images = images.cuda() if cuda else images
-        out =  model.get_embedding(images).data.cpu().numpy()
-        embeddings.append(out)
-        labels.append(target.numpy())
+    embeds, labels = [], []
 
-    embeddings = np.vstack(embeddings)
+    for images, _labels in loader:
+        images = images.cuda()
+        out = model.get_embedding(images).cpu().numpy()
+        embeds.append(out)
+        labels.append(_labels.numpy())
+
+    embeds = np.vstack(embeds)
     labels = np.concatenate(labels)
-    return embeddings, labels
+
+    return embeds, labels
+
+
+def plot_to_image(figure):
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    plt.close(figure)
+    buf.seek(0)
+    image = Image.open(buf)
+    image = to_tensor(image)
+    return image
+
+
+def plot_embeddings(model, loader, max_classes=None):
+    embeds, labels = extract_embeddings(model, loader)
+
+    embeds = TSNE(n_components=2, verbose=1).fit_transform(embeds)
+
+    figure = plt.figure(figsize=(10, 10))
+    if max_classes is not None:
+        selected_classes = np.random.choice(loader.dataset.classes, max_classes)
+    else:
+        selected_classes = loader.dataset.classes
+    for cls in selected_classes:
+        idx = loader.dataset.class_to_idx[cls]
+        inds = labels == idx
+        plt.scatter(embeds[inds, 0], embeds[inds, 1], alpha=0.5)
+
+    plt.legend(loader.dataset.classes)
+
+    return figure
+
+
+if __name__ == '__main__':
+    from torchvision.datasets import ImageFolder
+    from torch.utils.data import DataLoader
+    from tracking.metric_learning.train import get_transform
+
+    dataset = ImageFolder(root='../../../data/metric_learning/val', transform=get_transform(train=False))
+    dataloader = DataLoader(dataset, batch_size=64, shuffle=False, num_workers=4)
+
+    model = torch.load('../metric_learning/checkpoints/epoch_9__ckpt.pth')
+
+    plot_embeddings(model, dataloader)
+    plt.show()

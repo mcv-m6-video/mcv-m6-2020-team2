@@ -3,7 +3,6 @@ from collections import defaultdict
 
 import torch
 from torch import nn
-from torch.hub import load_state_dict_from_url
 from torchvision import models
 import torchvision.transforms.functional as F
 
@@ -13,19 +12,13 @@ from PIL import Image
 from sklearn.metrics.pairwise import paired_distances
 
 from utils.aicity_reader import parse_annotations_from_txt
-from tracking.metric_learning.network import EmbeddingNet
 
 
 class Encoder(nn.Module):
-    def __init__(self, url=None, n_dims=256, cuda=True):
+    def __init__(self, path=None):
         super().__init__()
-        if url:
-            self.model = EmbeddingNet(num_dims=n_dims)
-            if cuda:
-                self.model.load_state_dict(load_state_dict_from_url(url)['state_dict'])
-            else:
-                self.model.load_state_dict(load_state_dict_from_url(url, map_location=torch.device('cpu'))['state_dict'])
-
+        if path:
+            self.model = torch.load(path)
         else:
             self.model = nn.Sequential(
                 *list(models.mobilenet_v2(pretrained=True).features.children())[:-1],
@@ -33,29 +26,24 @@ class Encoder(nn.Module):
             )
 
     def forward(self, x):
-        return self.model(x)
+        return self.model.get_embedding(x)
 
     def get_embedding(self, img):
         with torch.no_grad():
-            if torch.cuda.is_available():
-                img = self.transform(img).unsqueeze(0).cuda()
-            else:
-                img = self.transform(img).unsqueeze(0)
+            img = self.transform(img).unsqueeze(0).cuda()
             return self.forward(img).squeeze().cpu().numpy()
 
     def get_embeddings(self, batch):
         with torch.no_grad():
-            if torch.cuda.is_available():
-                batch = torch.stack([self.transform(img) for img in batch]).cuda()
-            else:
-                batch = torch.stack([self.transform(img) for img in batch])
+            batch = torch.stack([self.transform(img) for img in batch]).cuda()
             return self.forward(batch).squeeze().cpu().numpy()
 
     @staticmethod
     def transform(img):
         img = Image.fromarray(img)
-        img = F.resize(img, (80, 100))
+        # img = F.resize(img, (128, 128))
         img = F.to_tensor(img)
+        img = F.normalize(img, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         return img
 
 
@@ -95,7 +83,7 @@ def test_encoder(metric='euclidean'):
         img = img[int(det.ytl):int(det.ybr), int(det.xtl):int(det.xbr)]
         return img, (cam, det.id)
 
-    encoder = Encoder(url='https://drive.google.com/uc?export=download&id=1Op7ABJidoga04SxGCAdcNFBKut1sLY8c')
+    encoder = Encoder(path='../metric_learning/checkpoints/epoch_9__ckpt.pth')
     print(encoder)
     encoder.cuda()
     encoder.eval()

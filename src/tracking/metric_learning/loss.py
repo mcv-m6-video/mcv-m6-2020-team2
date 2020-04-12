@@ -1,67 +1,109 @@
-import time
+"""
+https://github.com/pytorch/vision/blob/master/references/similarity/loss.py
+"""
 
 import torch
-from torch import nn
-import torch.nn.functional as F
-import numpy as np
-from tqdm import tqdm
+import torch.nn as nn
 
 
-class OnlineTripletLoss(nn.Module):
-    """
-    Online Triplets loss
-    Takes a batch of embeddings and corresponding labels.
-    Triplets are generated using triplet_selector object that take embeddings and targets and return indices of
-    triplets
-    """
-    def __init__(self, margin):
-        super().__init__()
+class TripletMarginLoss(nn.Module):
+    def __init__(self, margin=1.0, p=2., mining='batch_all'):
+        super(TripletMarginLoss, self).__init__()
         self.margin = margin
+        self.p = p
+        self.mining = mining
 
-    def forward(self, embeddings, targets):
+        if mining == 'batch_all':
+            self.loss_fn = batch_all_triplet_loss
+        if mining == 'batch_hard':
+            self.loss_fn = batch_hard_triplet_loss
 
-        triplets = self._get_triplets(embeddings, targets)
-
-        if embeddings.is_cuda:
-            embeddings = embeddings.cuda()
-            triplets = triplets.cuda()
-
-        ap_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 1]]).pow(2).sum(1)  # anchor - positive
-        an_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 2]]).pow(2).sum(1)  # achor - negative
-        losses = F.relu(ap_distances - an_distances + self.margin)
-
-        return losses.mean(), triplets
-
-    def _pair_wise_distance(self, vectors):
-        return -2 * vectors.mm(torch.t(vectors)) + \
-               vectors.pow(2).sum(dim=1).view(1, -1) + \
-               vectors.pow(2).sum(dim=1).view(-1, 1)
-
-    def _get_triplets(self, embeddings, targets):
-        """
-        Select hardest positive and negative from a given anchor
-        """
-        if embeddings.is_cuda:
-            embeddings = embeddings.cpu()
-            targets = targets.cpu()
-
-        distance_matrix = self._pair_wise_distance(embeddings)
-        triplets = []
-
-        for label in set(targets):
-            label_mask = (targets == label)
-
-            positive_indices = np.where(label_mask)[0]
-            negative_indices = np.where(np.logical_not(label_mask))[0]
-
-            for anchor_positive in positive_indices:
-                # Get distances to all possible positives and select the one with maximum distance
-                hardest_positive = positive_indices[np.argmax([distance_matrix[anchor_positive, pair_positive] for pair_positive in positive_indices])]
-
-                # Get distances for all pairs and then delete the ones corresponding to positive indices. Compute minimum distance
-                hardest_negative = negative_indices[np.argmin(np.delete(distance_matrix[anchor_positive, :].detach().numpy(), positive_indices))]
+    def forward(self, embeddings, labels):
+        return self.loss_fn(labels, embeddings, self.margin, self.p)
 
 
-                triplets.append([anchor_positive, hardest_positive, hardest_negative])
+def batch_hard_triplet_loss(labels, embeddings, margin, p):
+    pairwise_dist = torch.cdist(embeddings, embeddings, p=p)
 
-        return torch.LongTensor(np.array(triplets))
+    mask_anchor_positive = _get_anchor_positive_triplet_mask(labels).float()
+    anchor_positive_dist = mask_anchor_positive * pairwise_dist
+
+    # hardest positive for every anchor
+    hardest_positive_dist, _ = anchor_positive_dist.max(1, keepdim=True)
+
+    mask_anchor_negative = _get_anchor_negative_triplet_mask(labels).float()
+
+    # Add max value in each row to invalid negatives
+    max_anchor_negative_dist, _ = pairwise_dist.max(1, keepdim=True)
+    anchor_negative_dist = pairwise_dist + max_anchor_negative_dist * (1.0 - mask_anchor_negative)
+
+    # hardest negative for every anchor
+    hardest_negative_dist, _ = anchor_negative_dist.min(1, keepdim=True)
+
+    triplet_loss = hardest_positive_dist - hardest_negative_dist + margin
+    triplet_loss[triplet_loss < 0] = 0
+
+    triplet_loss = triplet_loss.mean()
+
+    return triplet_loss, -1
+
+
+def batch_all_triplet_loss(labels, embeddings, margin, p):
+    pairwise_dist = torch.cdist(embeddings, embeddings, p=p)
+
+    anchor_positive_dist = pairwise_dist.unsqueeze(2)
+    anchor_negative_dist = pairwise_dist.unsqueeze(1)
+
+    triplet_loss = anchor_positive_dist - anchor_negative_dist + margin
+
+    mask = _get_triplet_mask(labels)
+    triplet_loss = mask.float() * triplet_loss
+
+    # Remove negative losses (easy triplets)
+    triplet_loss[triplet_loss < 0] = 0
+
+    # Count number of positive triplets (where triplet_loss > 0)
+    valid_triplets = triplet_loss[triplet_loss > 1e-16]
+    num_positive_triplets = valid_triplets.size(0)
+    num_valid_triplets = mask.sum()
+
+    fraction_positive_triplets = num_positive_triplets / (num_valid_triplets.float() + 1e-16)
+
+    # Get final mean triplet loss over the positive valid triplets
+    triplet_loss = triplet_loss.sum() / (num_positive_triplets + 1e-16)
+
+    return triplet_loss, fraction_positive_triplets
+
+
+def _get_triplet_mask(labels):
+    # Check that i, j and k are distinct
+    indices_equal = torch.eye(labels.size(0), dtype=torch.bool, device=labels.device)
+    indices_not_equal = ~indices_equal
+    i_not_equal_j = indices_not_equal.unsqueeze(2)
+    i_not_equal_k = indices_not_equal.unsqueeze(1)
+    j_not_equal_k = indices_not_equal.unsqueeze(0)
+
+    distinct_indices = (i_not_equal_j & i_not_equal_k) & j_not_equal_k
+
+    label_equal = labels.unsqueeze(0) == labels.unsqueeze(1)
+    i_equal_j = label_equal.unsqueeze(2)
+    i_equal_k = label_equal.unsqueeze(1)
+
+    valid_labels = ~i_equal_k & i_equal_j
+
+    return valid_labels & distinct_indices
+
+
+def _get_anchor_positive_triplet_mask(labels):
+    # Check that i and j are distinct
+    indices_equal = torch.eye(labels.size(0), dtype=torch.bool, device=labels.device)
+    indices_not_equal = ~indices_equal
+
+    # Check if labels[i] == labels[j]
+    labels_equal = labels.unsqueeze(0) == labels.unsqueeze(1)
+
+    return labels_equal & indices_not_equal
+
+
+def _get_anchor_negative_triplet_mask(labels):
+    return labels.unsqueeze(0) != labels.unsqueeze(1)

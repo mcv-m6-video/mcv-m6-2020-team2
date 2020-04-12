@@ -4,30 +4,16 @@ from torchvision import models
 
 class EmbeddingNet(nn.Module):
 
-    def __init__(self, num_dims, architecture="resnet"):
+    def __init__(self, num_dims=128):
         super().__init__()
 
-        if architecture == 'resnet':
-            self.model = models.resnet18(pretrained=True)
-            num_ftrs = self.model.fc.in_features
-            self.model.fc = nn.Linear(num_ftrs, num_dims)
-
-        elif architecture == 'mobile':
-            self.model = models.mobilenet_v2(pretrained=True)
-
-            new_classifier = nn.Sequential(*list(self.model.classifier.children())[:-1],
-                                           # nn.AdaptiveAvgPool2d((1, 1)),
-                                           nn.Linear(self.model.last_channel, num_dims))
-            self.model.classifier = new_classifier
-
-        elif architecture == "vgg":
-            self.model = models.vgg16(pretrained=True)
-            new_classifier = nn.Sequential(*list(self.model.classifier.children())[:-1], nn.Linear(4096, num_dims))
-            self.model.classifier = new_classifier
-
+        base_encoder = models.resnet18(pretrained=False)
+        self.backbone = nn.Sequential(*list(base_encoder.children())[:-1], nn.Flatten())
+        self.projection = nn.Sequential(nn.Linear(512, 512), nn.ReLU(), nn.Linear(512, num_dims))
 
     def forward(self, x):
-        return self.model(x)
+        x = self.backbone(x)
+        return self.projection(x)
 
     def get_embedding(self, x):
-        return self.forward(x)
+        return self.backbone(x)
