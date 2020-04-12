@@ -2,12 +2,11 @@ import os
 import numpy as np
 import cv2
 import imageio
-from tqdm import tqdm, trange
-import matplotlib.pyplot as plt
+from tqdm import trange
 
 from src.tracking.tracking import update_tracks_by_overlap, remove_static_tracks
 from src.tracking.sort import Sort
-from src.utils.detection import Detection
+from detection.detection import Detection
 from src.evaluation.idf1 import MOTAcumulator
 from src.utils.aicity_reader import AICityChallengeAnnotationReader, group_by_frame
 from src.evaluation.average_precision import mean_average_precision

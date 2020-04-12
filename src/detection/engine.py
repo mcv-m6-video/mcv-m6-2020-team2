@@ -5,7 +5,7 @@ import time
 import torch
 
 import src.detection.utils as utils
-from src.utils.detection import Detection
+from detection.detection import Detection
 from src.evaluation.average_precision import mean_average_precision
 
 

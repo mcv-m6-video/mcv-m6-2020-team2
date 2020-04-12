@@ -1,10 +1,9 @@
 from copy import deepcopy
 import numpy as np
 from sklearn.metrics.pairwise import pairwise_distances
-from scipy.signal import medfilt
 
-from src.utils.detection import Detection
-from src.utils.track import Track
+from detection.detection import Detection
+from tracking.track import Track
 from src.evaluation.intersection_over_union import bb_intersecion_over_union
 
 

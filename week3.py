@@ -5,7 +5,6 @@ from collections import defaultdict
 import numpy as np
 import cv2
 import imageio
-from tqdm import trange
 
 import torch
 from torchvision.models import detection
@@ -17,7 +16,7 @@ from src.tracking.sort import Sort
 from src.evaluation.average_precision import mean_average_precision
 from src.evaluation.idf1 import MOTAcumulator
 from src.utils.aicity_reader import AICityChallengeAnnotationReader
-from src.utils.detection import Detection
+from detection.detection import Detection
 from src.utils.plotutils import video_iou_plot
 from src.utils.non_maximum_supression import get_nms
 

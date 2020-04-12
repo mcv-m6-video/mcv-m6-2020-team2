@@ -4,7 +4,7 @@ from collections import defaultdict, OrderedDict
 import numpy as np
 import xmltodict
 
-from utils.detection import Detection
+from detection.detection import Detection
 
 
 def parse_annotations_from_xml(path):
