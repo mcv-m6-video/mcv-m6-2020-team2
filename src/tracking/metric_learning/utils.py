@@ -23,9 +23,31 @@ def show_batch(dataloader, n_view=10, n_cars=10):
         plt.axis('off')
         break
 
+
+def show_triplets(triplets, data, cuda, output_path, epoch, n_cars=15):
+    fig = plt.figure(figsize=(20, 20))
+    grid = ImageGrid(fig, 111, nrows_ncols=(n_cars, 3), axes_pad=0.1)
+
+    print(len(triplets))
+    triplets = triplets[:n_cars]
+    flat_list = [item for triplet in triplets for item in triplet]
+
+    for i, triplet_id in enumerate(flat_list):
+        ax = grid[i]
+        im = data[triplet_id].cpu().numpy() if cuda else data[triplet_id].numpy()
+        ax.imshow(np.transpose(im, (1, 2, 0)))
+        ax.title.set_text(f"{triplet_id}")
+        ax.axis('off')
+
+    plt.savefig(f"{output_path}/triplets_{epoch}.png")
+    # plt.show()
+    plt.axis('off')
+
+
 def matplotlib_imshow(img):
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
+
 
 def write_triplets_tensorboard(triplets, data, epoch):
     print(len(triplets))
