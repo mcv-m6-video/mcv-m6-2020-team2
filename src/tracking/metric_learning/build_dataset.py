@@ -51,7 +51,7 @@ def downsample(img, max_height, max_width):
 
 def generate_train_crops(root, save_path, train_seqs, val_seqs, width=128, height=128):
 
-    def generate_crops(root, save_path):    
+    def generate_crops(root, save_path):
         for cam in os.listdir(root):
             detections_by_frame = group_by_frame(parse_annotations_from_txt(os.path.join(root, cam, 'gt', 'gt.txt')))
             cap = cv2.VideoCapture(os.path.join(root, cam, 'vdo.avi'))

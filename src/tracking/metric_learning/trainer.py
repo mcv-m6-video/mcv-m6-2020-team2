@@ -3,7 +3,7 @@ import torch
 import torchvision
 from tqdm import tqdm
 import numpy as np
-from tracking.metric_learning.utils import write_triplets_tensorboard, matplotlib_imshow
+from tracking.metric_learning.plotutils import write_triplets_tensorboard, matplotlib_imshow
 
 
 def save_checkpoint(state, is_best, output_path):

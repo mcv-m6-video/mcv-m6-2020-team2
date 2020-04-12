@@ -12,7 +12,7 @@ from tracking.metric_learning.network import EmbeddingNet
 from tracking.metric_learning.loss import OnlineTripletLoss
 from tracking.metric_learning.trainer import fit
 from tracking.metric_learning.embeddings import extract_embeddings, plot_embeddings
-from tracking.metric_learning.utils import show_batch
+from tracking.metric_learning.plotutils import show_batch
 
 visualize=False
 images_x_class = 10
