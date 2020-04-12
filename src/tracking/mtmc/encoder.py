@@ -44,7 +44,7 @@ class Encoder(nn.Module):
     @staticmethod
     def transform(img):
         img = Image.fromarray(img)
-        img = F.resize(img, (100, 80))  # TODO: change this once the trained model is fixed
+        img = F.resize(img, (80, 100))
         img = F.to_tensor(img)
         return img
 
