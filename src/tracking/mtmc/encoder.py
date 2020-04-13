@@ -41,7 +41,7 @@ class Encoder(nn.Module):
     @staticmethod
     def transform(img):
         img = Image.fromarray(img)
-        # img = F.resize(img, (128, 128))
+        img = F.resize(img, (128, 128))
         img = F.to_tensor(img)
         img = F.normalize(img, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         return img
