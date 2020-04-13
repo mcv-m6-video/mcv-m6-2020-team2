@@ -128,8 +128,7 @@ def reid_spatiotemporal(root, seq, metric='euclidean', thresh=10):
 
     # read data
     # tracks_by_cam = {cam: group_by_id(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in cams}
-    tracks_by_cam = {cam: group_in_tracks(parse_annotations_from_txt(os.path.join(seq_path, cam, 'gt', 'gt.txt')), cam)
-                     for cam in cams}
+    tracks_by_cam = {cam: group_in_tracks(parse_annotations_from_txt(os.path.join(seq_path, cam, 'gt', 'gt.txt')), cam) for cam in cams}
     cap = {cam: cv2.VideoCapture(os.path.join(seq_path, cam, 'vdo.avi')) for cam in cams}
     fps = {cam: cap[cam].get(cv2.CAP_PROP_FPS) for cam in cams}
     H = {cam: read_calibration(os.path.join(seq_path, cam, 'calibration.txt')) for cam in cams}
