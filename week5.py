@@ -23,6 +23,7 @@ def task1(save_path='results/week5/task_1',
 
     save_video = False
     save_summary = False
+    save_tracks_txt = True
     os.makedirs(save_path, exist_ok=True)
 
     reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/' + sequence + '/' + camera + '/gt/gt.txt')
@@ -62,11 +63,13 @@ def task1(save_path='results/week5/task_1',
         y_true.append(gt.get(frame, []))
 
     idf1s = []
+    all_moving_tracks = []
     for distance_threshold in distance_thresholds:
         accumulator = MOTAcumulator()
         y_pred = []
 
         moving_tracks = remove_static_tracks(tracks, distance_threshold, min_track_len)
+        all_moving_tracks.extend(moving_tracks)
         detections = []
         for track in moving_tracks:
             detections.extend(track.track)
@@ -96,6 +99,20 @@ def task1(save_path='results/week5/task_1',
                 writer.append_data(cv2.resize(img, (600, 350)))
 
             accumulator.update(y_true[frame], y_pred[-1])
+
+        # Save tracks on .txt
+        if save_tracks_txt:
+            filename = os.path.join(save_path, sequence + '_' + camera + '.txt')
+
+            lines = []
+            for track in all_moving_tracks:
+                for det in track.track:
+                    lines.append((det.frame, track.id, det.xtl, det.ytl, det.width, det.height, det.score, "-1", "-1", "-1"))
+
+            lines = sorted(lines, key=lambda x: x[0])
+            with open(filename, "w") as file:
+                for line in lines:
+                    file.write(",".join(list(map(str, line))) + "\n")
 
         ap, prec, rec = mean_average_precision(y_true, y_pred, classes=['car'], sort_method='score')
         print(f'AP: {ap:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}')
