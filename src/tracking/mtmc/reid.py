@@ -9,7 +9,7 @@ from sklearn.cluster import DBSCAN
 from sklearn.metrics.pairwise import paired_distances
 from tqdm import tqdm
 
-from evaluation.idf1 import compute_idf1
+from evaluation.idf1 import MOTAcumulator
 from tracking.mtmc.camera import read_calibration, read_timestamps, angle_to_cam, bbox2gps, time_range, angle
 from tracking.mtmc.encoder import Encoder
 from utils.aicity_reader import parse_annotations_from_txt, group_by_frame, group_by_id, group_in_tracks
@@ -126,8 +126,7 @@ def reid_spatiotemporal(root, seq, metric='euclidean', thresh=10):
     cams = sorted([f for f in os.listdir(seq_path) if not f.startswith('.')])
 
     # read data
-    # tracks_by_cam = {cam: group_by_id(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in cams}
-    tracks_by_cam = {cam: group_in_tracks(parse_annotations_from_txt(os.path.join(seq_path, cam, 'gt', 'gt.txt')), cam) for cam in cams}
+    tracks_by_cam = {cam: group_in_tracks(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt')), cam) for cam in cams}
     cap = {cam: cv2.VideoCapture(os.path.join(seq_path, cam, 'vdo.avi')) for cam in cams}
     fps = {cam: cap[cam].get(cv2.CAP_PROP_FPS) for cam in cams}
     H = {cam: read_calibration(os.path.join(seq_path, cam, 'calibration.txt')) for cam in cams}
@@ -150,7 +149,6 @@ def reid_spatiotemporal(root, seq, metric='euclidean', thresh=10):
     else:
         embeddings = get_track_embeddings(tracks_by_cam, cap, encoder, save_path=embeddings_file)
 
-    # matches = []
     for cam1 in cams:
         for id1, track1 in tracks_by_cam[cam1].items():
             dets1 = track1.get_track()
@@ -239,9 +237,12 @@ if __name__ == '__main__':
     results = reid_spatiotemporal(root, seq)
     write_results(results, path=os.path.join('results', seq))
 
-    idf1s = []
+    accumulator = MOTAcumulator()
     for cam in os.listdir(os.path.join(root, 'train', seq)):
-        idf1 = compute_idf1(true_path=os.path.join(root, 'train', seq, cam, 'gt', 'gt.txt'),
-                            pred_path=os.path.join('results', seq, cam, 'results.txt'))
-        idf1s.append(idf1)
-    print(f'IDF1: {np.mean(idf1s)}')
+        dets_true = group_by_frame(parse_annotations_from_txt(os.path.join(root, 'train', seq, cam, 'gt', 'gt.txt')))
+        dets_pred = group_by_frame(parse_annotations_from_txt(os.path.join('results', seq, cam, 'results.txt')))
+        for frame in dets_true.keys():
+            y_true = dets_true.get(frame, [])
+            y_pred = dets_pred.get(frame, [])
+            accumulator.update(y_true, y_pred)
+    print(f'IDF1: {accumulator.get_idf1()}')
