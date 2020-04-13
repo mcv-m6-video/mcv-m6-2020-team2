@@ -9,7 +9,7 @@ from sklearn.cluster import DBSCAN
 from sklearn.metrics.pairwise import paired_distances
 from tqdm import tqdm
 
-from evaluation.idf1 import get_idf1_from_dir
+from evaluation.idf1 import compute_idf1
 from tracking.mtmc.camera import read_calibration, read_timestamps, angle_to_cam, bbox2gps, time_range, angle
 from tracking.mtmc.encoder import Encoder
 from utils.aicity_reader import parse_annotations_from_txt, group_by_frame, group_by_id, group_in_tracks
@@ -85,6 +85,7 @@ def get_track_embeddings(tracks_by_cam, cap, encoder, batch_size=512, save_path=
 
     # save embeddings
     if save_path is not None:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         with open(save_path, 'wb') as f:
             pickle.dump(embeddings, f)
 
@@ -185,8 +186,6 @@ def reid_spatiotemporal(root, seq, metric='euclidean', thresh=10):
                                         match = (cam2, track2)
                                         min_dist = dist
 
-            # matches = get_matches_by_clustering(candidates, embeddings, cam1, id1) # TODO Remove when no longer util
-
             # merge matched tracks
             if match:
                 tracks_by_cam[cam1][id1].set_next_track((match[0], match[1].id))
@@ -218,27 +217,31 @@ def reid_spatiotemporal(root, seq, metric='euclidean', thresh=10):
 
 
 def write_results(tracks_by_cam, path):
-    for cam_id, all_tracks_in_camera in tracks_by_cam.items():
-
-        camera_path = os.path.join(path, cam_id)
-        if not os.path.exists(camera_path):
-            os.makedirs(camera_path)
-        filename = os.path.join(camera_path, 'results.txt')
-
+    for cam, tracks in tracks_by_cam.items():
         lines = []
-        for track_id, track_object in all_tracks_in_camera.items():
-            for det in track_object.track:
-                lines.append((det.frame, track_object.id, int(det.xtl), int(det.ytl), int(det.width), int(det.height),
+        for id, track in tracks.items():
+            for det in track.track:
+                lines.append((det.frame, track.id, int(det.xtl), int(det.ytl), int(det.width), int(det.height),
                               det.score, '-1', '-1', '-1'))
-
         lines = sorted(lines, key=lambda x: x[0])
+
+        filename = os.path.join(path, cam, 'results.txt')
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
         with open(filename, 'w') as file:
             for line in lines:
                 file.write(','.join(list(map(str, line))) + '\n')
 
 
 if __name__ == '__main__':
-    results = reid_spatiotemporal('../../../data/AIC20_track3', 'S03')
-    write_results(results, path='./results/S03')
-    idf = get_idf1_from_dir('./results', 'S03', 'ours', gt_dir='../../../data/AIC20_track3/train')
-    print(idf)
+    root = '../../../data/AIC20_track3'
+    seq = 'S03'
+
+    results = reid_spatiotemporal(root, seq)
+    write_results(results, path=os.path.join('results', seq))
+
+    idf1s = []
+    for cam in os.listdir(os.path.join(root, 'train', seq)):
+        idf1 = compute_idf1(true_path=os.path.join(root, 'train', seq, cam, 'gt', 'gt.txt'),
+                            pred_path=os.path.join('results', seq, cam, 'results.txt'))
+        idf1s.append(idf1)
+    print(f'IDF1: {np.mean(idf1s)}')
