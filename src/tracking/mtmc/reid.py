@@ -95,9 +95,7 @@ def reid_exhaustive(root):
     cams = set(os.listdir(root))
 
     # read data
-    tracks_by_cam = {
-        cam: group_by_id(parse_annotations_from_txt(os.path.join(root, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam
-        in cams}
+    tracks_by_cam = {cam: group_by_id(parse_annotations_from_txt(os.path.join(root, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in cams}
     cap = {cam: cv2.VideoCapture(os.path.join(root, cam, 'vdo.avi')) for cam in cams}
 
     # filter out static tracks
