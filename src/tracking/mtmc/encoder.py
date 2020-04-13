@@ -83,7 +83,7 @@ def test_encoder(metric='euclidean'):
         img = img[int(det.ytl):int(det.ybr), int(det.xtl):int(det.xbr)]
         return img, (cam, det.id)
 
-    encoder = Encoder(path='../metric_learning/checkpoints/epoch_9__ckpt.pth')
+    encoder = Encoder(path='../metric_learning/checkpoints/epoch_19__ckpt.pth')
     print(encoder)
     encoder.cuda()
     encoder.eval()

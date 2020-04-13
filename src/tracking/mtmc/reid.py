@@ -6,7 +6,7 @@ from collections import defaultdict
 import cv2
 import numpy as np
 from sklearn.cluster import DBSCAN
-from sklearn.metrics.pairwise import paired_distances
+from sklearn.metrics.pairwise import pairwise_distances
 from tqdm import tqdm
 
 from evaluation.idf1 import MOTAcumulator
@@ -121,7 +121,7 @@ def reid_exhaustive(root):
     pprint.pprint(clusters)
 
 
-def reid_spatiotemporal(root, seq, metric='euclidean', thresh=10):
+def reid_spatiotemporal(root, seq, metric='euclidean', thresh=20):
     seq_path = os.path.join(root, 'train', seq)
     cams = sorted([f for f in os.listdir(seq_path) if not f.startswith('.')])
 
@@ -156,11 +156,8 @@ def reid_spatiotemporal(root, seq, metric='euclidean', thresh=10):
             dir1 = bbox2gps(dets1[-1].bbox, H[cam1]) - bbox2gps(dets1[-min(int(fps[cam1]), len(dets1) - 1)].bbox,
                                                                 H[cam1])
             range1 = time_range(dets1, timestamp[cam1], fps[cam1])
-            emb1 = embeddings[cam1][id1]
 
-            min_dist = 100
-            match = None
-            # candidates = []
+            candidates = []
             for cam2 in cams:
                 if cam2 == cam1:
                     continue
@@ -177,17 +174,18 @@ def reid_spatiotemporal(root, seq, metric='euclidean', thresh=10):
                             if angle(dir1, dir2) < 15:  # tracks have similar direction
                                 if not track2.get_previous_track() and not track1.get_next_track():
                                     # track has not been previously matched to another track from the same direction
-                                    # candidates.append((cam2, id2))  # TODO Remove when no longer util
-                                    emb2 = embeddings[cam2][id2]
-                                    dist = paired_distances([emb1], [emb2], metric).squeeze()
-                                    if dist < min_dist:
-                                        match = (cam2, track2)
-                                        min_dist = dist
+                                    candidates.append((cam2, id2))
 
-            # merge matched tracks
-            if match:
-                tracks_by_cam[cam1][id1].set_next_track((match[0], match[1].id))
-                tracks_by_cam[match[0]][match[1].id].set_previous_track((cam1, id1))
+            if len(candidates) > 0:
+                dist = pairwise_distances([embeddings[cam1][id1]],
+                                          [embeddings[cam2][id2] for cam2, id2 in candidates],
+                                          metric).flatten()
+                ind = dist.argmin()
+                if dist[ind] < thresh:
+                    # merge matched tracks
+                    cam2, id2 = candidates[ind]
+                    tracks_by_cam[cam1][id1].set_next_track((cam2, id2))
+                    tracks_by_cam[cam2][id2].set_previous_track((cam1, id1))
 
     starting_tracks = []
     for cam, tracks in tracks_by_cam.items():
@@ -196,22 +194,22 @@ def reid_spatiotemporal(root, seq, metric='euclidean', thresh=10):
                 starting_tracks.append(track)
 
     # propagate ids through tracks connected to starting tracks
-    result_reid = defaultdict(dict)
+    results = defaultdict(dict)
     track_count = 1
     for track in starting_tracks:
         track.id = track_count
-        result_reid[track.camera][track_count] = track
+        results[track.camera][track_count] = track
         next_track = track.get_next_track()
 
         while next_track:
             cam_next, id_next = next_track
             track_to_propagate = tracks_by_cam[cam_next][id_next]
             track_to_propagate.id = track_count
-            result_reid[track_to_propagate.camera][track_count] = track_to_propagate
+            results[track_to_propagate.camera][track_count] = track_to_propagate
             next_track = track_to_propagate.get_next_track()
         track_count += 1
 
-    return result_reid
+    return results
 
 
 def write_results(tracks_by_cam, path):
