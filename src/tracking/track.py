@@ -1,5 +1,6 @@
 import random
 
+
 class Track(object):
     def __init__(self, id, detections, camera=0):
         self.id = id

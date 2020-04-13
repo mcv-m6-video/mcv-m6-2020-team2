@@ -1,11 +1,13 @@
 import os
-from copy import deepcopy
 from collections import defaultdict, OrderedDict
+from copy import deepcopy
+
 import numpy as np
 import xmltodict
 
 from detection.detection import Detection
 from tracking.track import Track
+
 
 def parse_annotations_from_xml(path):
     with open(path) as f:
@@ -83,11 +85,12 @@ def group_by_id(detections):
         grouped[det.id].append(det)
     return OrderedDict(sorted(grouped.items()))
 
+
 def group_in_tracks(detections, camera):
     grouped = group_by_id(detections)
     tracks = {}
     for id in grouped.keys():
-        tracks[id]=Track(id, grouped[id], camera)
+        tracks[id] = Track(id, grouped[id], camera)
     return tracks
 
 
