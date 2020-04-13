@@ -172,7 +172,7 @@ def reid_spatiotemporal(root, seq, metric='euclidean', thresh=20):
 
                         if range2[0] >= range1[0]:  # car is detected later in second camera
                             if angle(dir1, dir2) < 15:  # tracks have similar direction
-                                if not track2.get_previous_track() and not track1.get_next_track():
+                                if not track2.get_prev_track() and not track1.get_next_track():
                                     # track has not been previously matched to another track from the same direction
                                     candidates.append((cam2, id2))
 
@@ -185,12 +185,12 @@ def reid_spatiotemporal(root, seq, metric='euclidean', thresh=20):
                     # merge matched tracks
                     cam2, id2 = candidates[ind]
                     tracks_by_cam[cam1][id1].set_next_track((cam2, id2))
-                    tracks_by_cam[cam2][id2].set_previous_track((cam1, id1))
+                    tracks_by_cam[cam2][id2].set_prev_track((cam1, id1))
 
     starting_tracks = []
     for cam, tracks in tracks_by_cam.items():
         for id, track in tracks.items():
-            if track.get_next_track() and not track.get_previous_track():
+            if track.get_next_track() and not track.get_prev_track():
                 starting_tracks.append(track)
 
     # propagate ids through tracks connected to starting tracks

@@ -9,7 +9,7 @@ class Track(object):
                       int(random.random() * 256),
                       int(random.random() * 256))
         self.terminated = False
-        self.previous_track = None
+        self.prev_track = None
         self.next_track = None
         self.camera = camera
 
@@ -22,11 +22,11 @@ class Track(object):
     def last_detection(self):
         return self.track[-1]
 
-    def set_previous_track(self, track):
-        self.previous_track = track
+    def set_prev_track(self, track):
+        self.prev_track = track
 
-    def get_previous_track(self):
-        return self.previous_track
+    def get_prev_track(self):
+        return self.prev_track
 
     def set_next_track(self, track):
         self.next_track = track
