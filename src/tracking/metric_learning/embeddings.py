@@ -14,7 +14,8 @@ def extract_embeddings(model, loader):
     embeds, labels = [], []
 
     for images, _labels in loader:
-        images = images.cuda()
+        if torch.cuda.is_available():
+            images = images.cuda()
         out = model.get_embedding(images).cpu().numpy()
         embeds.append(out)
         labels.append(_labels.numpy())
@@ -60,10 +61,11 @@ if __name__ == '__main__':
     from torch.utils.data import DataLoader
     from tracking.metric_learning.train import get_transform
 
-    dataset = ImageFolder(root='../../../data/metric_learning/val', transform=get_transform(train=False))
-    dataloader = DataLoader(dataset, batch_size=64, shuffle=False, num_workers=4)
+    for setx in ["train", "val"]:
+        dataset = ImageFolder(root='../../../data/week5_dataset_metriclearning/train', transform=get_transform(train=False))
+        dataloader = DataLoader(dataset, batch_size=64, shuffle=False, num_workers=4)
 
-    model = torch.load('../metric_learning/checkpoints/epoch_9__ckpt.pth')
+        model = torch.load('../metric_learning/models/model.pth', map_location=torch.device('cpu'))
 
-    plot_embeddings(model, dataloader)
-    plt.show()
+        plot_embeddings(model, dataloader, max_classes=10)
+        plt.savefig(f"embedding_{setx}.png")

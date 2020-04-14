@@ -15,10 +15,11 @@ from utils.aicity_reader import parse_annotations_from_txt
 
 
 class Encoder(nn.Module):
-    def __init__(self, path=None):
+    def __init__(self, path=None, cuda=True):
         super().__init__()
+        self.cuda = cuda
         if path:
-            self.model = torch.load(path)
+            self.model = torch.load(path) if cuda else torch.load(path, map_location=torch.device('cpu'))
         else:
             self.model = nn.Sequential(
                 *list(models.mobilenet_v2(pretrained=True).features.children())[:-1],
@@ -30,12 +31,13 @@ class Encoder(nn.Module):
 
     def get_embedding(self, img):
         with torch.no_grad():
-            img = self.transform(img).unsqueeze(0).cuda()
+            img = self.transform(img).unsqueeze(0).cuda() if self.cuda else self.transform(img).unsqueeze(0)
             return self.forward(img).squeeze().cpu().numpy()
 
     def get_embeddings(self, batch):
         with torch.no_grad():
-            batch = torch.stack([self.transform(img) for img in batch]).cuda()
+            batch = torch.stack([self.transform(img) for img in batch]).cuda() \
+                if self.cuda else torch.stack([self.transform(img) for img in batch])
             return self.forward(batch).squeeze().cpu().numpy()
 
     @staticmethod

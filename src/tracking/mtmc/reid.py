@@ -5,6 +5,7 @@ from collections import defaultdict
 
 import cv2
 import numpy as np
+import torch
 from sklearn.cluster import DBSCAN
 from sklearn.metrics.pairwise import pairwise_distances
 from tqdm import tqdm
@@ -121,7 +122,7 @@ def reid_exhaustive(root):
     pprint.pprint(clusters)
 
 
-def reid_spatiotemporal(root, seq, metric='euclidean', thresh=20):
+def reid_spatiotemporal(root, seq, model_path, metric='euclidean', thresh=10, cuda=True):
     seq_path = os.path.join(root, 'train', seq)
     cams = sorted([f for f in os.listdir(seq_path) if not f.startswith('.')])
 
@@ -137,8 +138,9 @@ def reid_spatiotemporal(root, seq, metric='euclidean', thresh=20):
         tracks_by_cam[cam] = dict(filter(lambda x: not is_static(x[1]), tracks_by_cam[cam].items()))
 
     # initialize encoder
-    encoder = Encoder(path='../metric_learning/checkpoints/epoch_19__ckpt.pth')
-    encoder = encoder.cuda()
+    encoder = Encoder(path=model_path, cuda=cuda)
+    if cuda:
+        encoder = encoder.cuda()
     encoder.eval()
 
     # compute all embeddings
@@ -231,8 +233,9 @@ def write_results(tracks_by_cam, path):
 if __name__ == '__main__':
     root = '../../../data/AIC20_track3'
     seq = 'S03'
+    model_path = '../metric_learning/models/model.pth'
 
-    results = reid_spatiotemporal(root, seq)
+    results = reid_spatiotemporal(root, seq, model_path, cuda=torch.cuda.is_available())
     write_results(results, path=os.path.join('results', seq))
 
     accumulator = MOTAcumulator()
