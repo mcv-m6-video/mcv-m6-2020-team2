@@ -75,8 +75,8 @@ The goal of this week is to estimate the optical flow of a video sequence and us
 
 ## Week 5
 
-The goal of this week is to solve the Track 03 of the [MOT Challenge 2020](https://motchallenge.net/): **Multi-target multi-camera tracking.**
-
+During week5 we aim to solve Track 03 of the [AICity Challenge 2020](https://www.aicitychallenge.org/): **City-Scale Multi-Camera Vehicle Tracking.**
+The goal is to track vehicles across multiple cameras both at a single intersection and across multiple intersections spread out across a city. This helps traffic engineers understand journey times along entire corridors.
 * **Multi-target single-camera (MTSC) tracking**
     * Tracking from detections in Yolo3
     * Discard small bounding boxes
