@@ -5,10 +5,11 @@ import imageio
 from tqdm import trange
 
 from src.tracking.tracking import update_tracks_by_overlap, remove_static_tracks
+from src.tracking.mtmc.reid import reid, write_results
 from src.tracking.sort import Sort
 from detection.detection import Detection
 from src.evaluation.idf1 import MOTAcumulator
-from src.utils.aicity_reader import AICityChallengeAnnotationReader, group_by_frame
+from src.utils.aicity_reader import AICityChallengeAnnotationReader, group_by_frame, parse_annotations_from_txt
 from src.evaluation.average_precision import mean_average_precision
 
 
@@ -19,7 +20,7 @@ def task1(save_path='results/week5/task_1',
           min_height=48,
           sequence='S03',
           camera='c010',
-          detector='yolo3'): # 'mask_rcnn', 'ssd512', 'yolo3'
+          detector='yolo3'):  # 'mask_rcnn', 'ssd512', 'yolo3'
 
     save_video = False
     save_summary = False
@@ -28,18 +29,18 @@ def task1(save_path='results/week5/task_1',
 
     reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/' + sequence + '/' + camera + '/gt/gt.txt')
     gt = reader.get_annotations(classes=['car'])
-    reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/' + sequence + '/' + camera + '/det/det_' + detector + '.txt')
+    reader = AICityChallengeAnnotationReader(
+        path='data/AICity_data/train/' + sequence + '/' + camera + '/det/det_' + detector + '.txt')
     dets = reader.get_annotations(classes=['car'])
 
     cap = cv2.VideoCapture('data/AICity_data/train/' + sequence + '/' + camera + '/vdo.avi')
     n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     if save_video:
-        writer = imageio.get_writer(os.path.join(save_path, 'task1_' + sequence + '_' + camera + '_' + detector + '.gif'), fps=fps)
+        writer = imageio.get_writer(
+            os.path.join(save_path, 'task1_' + sequence + '_' + camera + '_' + detector + '.gif'), fps=fps)
 
-    accumulator = MOTAcumulator()
     y_true = []
-    y_pred = []
     tracks = []
     max_track = 0
     video_percentage = 1
@@ -57,7 +58,7 @@ def task1(save_path='results/week5/task_1',
         tracks, frame_tracks, max_track = update_tracks_by_overlap(tracks,
                                                                    detections_on_frame,
                                                                    max_track,
-                                                                   refinement=False, 
+                                                                   refinement=False,
                                                                    optical_flow=None)
 
         y_true.append(gt.get(frame, []))
@@ -90,7 +91,8 @@ def task1(save_path='results/week5/task_1',
                 if save_video:
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), track.color, 6)
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), track.color, -6)
-                    cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 6)
+                    cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0),
+                                6)
                     cv2.circle(img, track.track[-1].center, 5, track.color, -1)
 
             y_pred.append(frame_detections)
@@ -107,7 +109,8 @@ def task1(save_path='results/week5/task_1',
             lines = []
             for track in all_moving_tracks:
                 for det in track.track:
-                    lines.append((det.frame, track.id, det.xtl, det.ytl, det.width, det.height, det.score, "-1", "-1", "-1"))
+                    lines.append(
+                        (det.frame, track.id, det.xtl, det.ytl, det.width, det.height, det.score, "-1", "-1", "-1"))
 
             lines = sorted(lines, key=lambda x: x[0])
             with open(filename, "w") as file:
@@ -124,16 +127,15 @@ def task1(save_path='results/week5/task_1',
         print(summary)
 
         if save_summary:
-            with open(os.path.join(save_path, 'task1_' + sequence + '_' + camera + '_' + detector + '_' + str(distance_threshold) + '.txt'), 'w') as f:
+            with open(os.path.join(save_path, 'task1_' + sequence + '_' + camera + '_' + detector + '_' + str(
+                    distance_threshold) + '.txt'), 'w') as f:
                 f.write(str(summary))
 
-        idf1s.append(summary['idf1']['acc']*100)
+        idf1s.append(summary['idf1']['acc'] * 100)
 
     cv2.destroyAllWindows()
     if save_video:
         writer.close()
-
-    print()
 
     return idf1s
 
@@ -145,7 +147,7 @@ def task1_optical_flow(save_path='results/week5/task_1_optical_flow',
                        min_height=48,
                        sequence='S03',
                        camera='c010',
-                       detector='yolo3'): # 'mask_rcnn', 'ssd512', 'yolo3'
+                       detector='yolo3'):  # 'mask_rcnn', 'ssd512', 'yolo3'
 
     save_video = False
     save_summary = False
@@ -153,18 +155,18 @@ def task1_optical_flow(save_path='results/week5/task_1_optical_flow',
 
     reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/' + sequence + '/' + camera + '/gt/gt.txt')
     gt = reader.get_annotations(classes=['car'])
-    reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/' + sequence + '/' + camera + '/det/det_' + detector + '.txt')
+    reader = AICityChallengeAnnotationReader(
+        path='data/AICity_data/train/' + sequence + '/' + camera + '/det/det_' + detector + '.txt')
     dets = reader.get_annotations(classes=['car'])
 
     cap = cv2.VideoCapture('data/AICity_data/train/' + sequence + '/' + camera + '/vdo.avi')
     n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     if save_video:
-        writer = imageio.get_writer(os.path.join(save_path, 'task1_' + sequence + '_' + camera + '_' + detector + '.gif'), fps=fps)
+        writer = imageio.get_writer(
+            os.path.join(save_path, 'task1_' + sequence + '_' + camera + '_' + detector + '.gif'), fps=fps)
 
-    accumulator = MOTAcumulator()
     y_true = []
-    y_pred = []
     tracks = []
     max_track = 0
     previous_frame = None
@@ -196,13 +198,14 @@ def task1_optical_flow(save_path='results/week5/task_1_optical_flow',
             p0 = np.array(points, dtype=np.float32)
 
             # params for lucas-kanade optical flow
-            lk_params = dict(winSize=(15, 15), maxLevel=2, criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
+            lk_params = dict(winSize=(15, 15), maxLevel=2,
+                             criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
 
             p1, st, err = cv2.calcOpticalFlowPyrLK(previous_frame, img, p0, None, **lk_params)
 
-            p0 = p0.reshape((len(detections_on_frame)*2, 2))
-            p1 = p1.reshape((len(detections_on_frame)*2, 2))
-            st = st.reshape(len(detections_on_frame)*2)
+            p0 = p0.reshape((len(detections_on_frame) * 2, 2))
+            p1 = p1.reshape((len(detections_on_frame) * 2, 2))
+            st = st.reshape(len(detections_on_frame) * 2)
 
             # flow field computed by subtracting prev points from next points
             flow = p1 - p0
@@ -210,16 +213,15 @@ def task1_optical_flow(save_path='results/week5/task_1_optical_flow',
 
             optical_flow = np.zeros((height, width, 2), dtype=np.float32)
             for jj, det in enumerate(detections_on_frame):
-                optical_flow[int(det.ytl), int(det.xtl)] = flow[2*jj]
-                optical_flow[int(det.ybr), int(det.xbr)] = flow[2*jj+1]
-
+                optical_flow[int(det.ytl), int(det.xtl)] = flow[2 * jj]
+                optical_flow[int(det.ybr), int(det.xbr)] = flow[2 * jj + 1]
 
         previous_frame = img.copy()
 
         tracks, frame_tracks, max_track = update_tracks_by_overlap(tracks,
                                                                    detections_on_frame,
                                                                    max_track,
-                                                                   refinement=False, 
+                                                                   refinement=False,
                                                                    optical_flow=optical_flow)
 
         y_true.append(gt.get(frame, []))
@@ -250,7 +252,8 @@ def task1_optical_flow(save_path='results/week5/task_1_optical_flow',
                 if save_video:
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), track.color, 6)
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), track.color, -6)
-                    cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 6)
+                    cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0),
+                                6)
                     cv2.circle(img, track.track[-1].center, 5, track.color, -1)
 
             y_pred.append(frame_detections)
@@ -270,16 +273,15 @@ def task1_optical_flow(save_path='results/week5/task_1_optical_flow',
         print(summary)
 
         if save_summary:
-            with open(os.path.join(save_path, 'task1_' + sequence + '_' + camera + '_' + detector + '_' + str(distance_threshold) + '.txt'), 'w') as f:
+            with open(os.path.join(save_path, 'task1_' + sequence + '_' + camera + '_' + detector + '_' + str(
+                    distance_threshold) + '.txt'), 'w') as f:
                 f.write(str(summary))
 
-        idf1s.append(summary['idf1']['acc']*100)
+        idf1s.append(summary['idf1']['acc'] * 100)
 
     cv2.destroyAllWindows()
     if save_video:
         writer.close()
-
-    print()
 
     return idf1s
 
@@ -291,7 +293,7 @@ def task1_kalman_filter(save_path='results/week5/task_1_kalman_filter',
                         min_height=48,
                         sequence='S03',
                         camera='c010',
-                        detector='yolo3'): # 'mask_rcnn', 'ssd512', 'yolo3'
+                        detector='yolo3'):  # 'mask_rcnn', 'ssd512', 'yolo3'
 
     save_video = False
     save_summary = False
@@ -299,19 +301,19 @@ def task1_kalman_filter(save_path='results/week5/task_1_kalman_filter',
 
     reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/' + sequence + '/' + camera + '/gt/gt.txt')
     gt = reader.get_annotations(classes=['car'])
-    reader = AICityChallengeAnnotationReader(path='data/AICity_data/train/' + sequence + '/' + camera + '/det/det_' + detector + '.txt')
+    reader = AICityChallengeAnnotationReader(
+        path='data/AICity_data/train/' + sequence + '/' + camera + '/det/det_' + detector + '.txt')
     dets = reader.get_annotations(classes=['car'])
 
     cap = cv2.VideoCapture('data/AICity_data/train/' + sequence + '/' + camera + '/vdo.avi')
     n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     if save_video:
-        writer = imageio.get_writer(os.path.join(save_path, 'task1_' + sequence + '_' + camera + '_' + detector + '.gif'), fps=fps)
+        writer = imageio.get_writer(
+            os.path.join(save_path, 'task1_' + sequence + '_' + camera + '_' + detector + '.gif'), fps=fps)
 
-    accumulator = MOTAcumulator()
     tracker = Sort()
     y_true = []
-    y_pred = []
     tracks = []
     max_track = 0
     video_percentage = 1
@@ -332,7 +334,7 @@ def task1_kalman_filter(save_path='results/week5/task_1_kalman_filter',
         tracks, frame_tracks, max_track = update_tracks_by_overlap(tracks,
                                                                    detections_on_frame,
                                                                    max_track,
-                                                                   refinement=False, 
+                                                                   refinement=False,
                                                                    optical_flow=None)
 
         y_true.append(gt.get(frame, []))
@@ -363,7 +365,8 @@ def task1_kalman_filter(save_path='results/week5/task_1_kalman_filter',
                 if save_video:
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ybr)), track.color, 6)
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), track.color, -6)
-                    cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 6)
+                    cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0),
+                                6)
                     cv2.circle(img, track.track[-1].center, 5, track.color, -1)
 
             y_pred.append(frame_detections)
@@ -383,20 +386,42 @@ def task1_kalman_filter(save_path='results/week5/task_1_kalman_filter',
         print(summary)
 
         if save_summary:
-            with open(os.path.join(save_path, 'task1_' + sequence + '_' + camera + '_' + detector + '_' + str(distance_threshold) + '.txt'), 'w') as f:
+            with open(os.path.join(save_path, 'task1_' + sequence + '_' + camera + '_' + detector + '_' + str(
+                    distance_threshold) + '.txt'), 'w') as f:
                 f.write(str(summary))
 
-        idf1s.append(summary['idf1']['acc']*100)
+        idf1s.append(summary['idf1']['acc'] * 100)
 
     cv2.destroyAllWindows()
     if save_video:
         writer.close()
 
-    print()
-
     return idf1s
 
 
+def task2():
+    root = 'data/AIC20_track3'
+    seq = 'S03'
+    model_path = 'src/tracking/metric_learning/checkpoints/epoch_19__ckpt.pth'
+    reid_method = 'spatio_temporal_consec'  # ['exhaustive', 'spatio_temporal_consec', 'spatio_temporal_graph']
+
+    # obtain reid results
+    path_results = os.path.join('results', 'week5', seq)
+    results = reid(root, seq, model_path, reid_method)
+    write_results(results, path=path_results)
+
+    # compute metrics
+    accumulator = MOTAcumulator()
+    for cam in os.listdir(os.path.join(root, 'train', seq)):
+        dets_true = group_by_frame(parse_annotations_from_txt(os.path.join(root, 'train', seq, cam, 'gt', 'gt.txt')))
+        dets_pred = group_by_frame(parse_annotations_from_txt(os.path.join(path_results, cam, 'results.txt')))
+        for frame in dets_true.keys():
+            y_true = dets_true.get(frame, [])
+            y_pred = dets_pred.get(frame, [])
+            accumulator.update(y_true, y_pred)
+    print(f'Metrics: {accumulator.get_metrics()}')
+
 
 if __name__ == '__main__':
-    task1()
+    # task1()
+    task2()

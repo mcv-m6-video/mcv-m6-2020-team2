@@ -43,7 +43,10 @@ def get_track_embeddings(tracks_by_cam, cap, encoder, batch_size=512, save_path=
     embeddings = defaultdict(dict)
     for cam in tqdm(tracks_by_cam, desc='Computing embeddings', leave=True):
         # process camera detections frame by frame
-        detections = [det for track in tracks_by_cam[cam].values() for det in track]
+        if isinstance(tracks_by_cam[cam][next(iter(tracks_by_cam[cam]))], Track):
+            detections = [det for track in tracks_by_cam[cam].values() for det in track.get_track()]
+        else:
+            detections = [det for track in tracks_by_cam[cam].values() for det in track]
         detections_by_frame = group_by_frame(detections)
 
         cap[cam].set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -93,11 +96,14 @@ def get_track_embeddings(tracks_by_cam, cap, encoder, batch_size=512, save_path=
     return embeddings
 
 
-def reid_exhaustive(root):
-    cams = set(os.listdir(root))
+def reid_exhaustive(root, seq, model_path):
+    seq_path = os.path.join(root, 'train', seq)
+    cams = sorted([f for f in os.listdir(seq_path) if not f.startswith('.')])
 
     # read data
-    tracks_by_cam = {cam: group_by_id(parse_annotations_from_txt(os.path.join(root, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in cams}
+    tracks_by_cam = {
+        cam: group_by_id(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for
+        cam in cams}
     cap = {cam: cv2.VideoCapture(os.path.join(root, cam, 'vdo.avi')) for cam in cams}
 
     # filter out static tracks
@@ -105,13 +111,17 @@ def reid_exhaustive(root):
         tracks_by_cam[cam] = dict(filter(lambda x: not is_static(x[1]), tracks_by_cam[cam].items()))
 
     # initialize encoder
-    encoder = Encoder()
-    encoder = encoder.cuda()
+    encoder = Encoder(path=model_path)
     encoder.eval()
 
     # compute all embeddings
-    embeddings = get_track_embeddings(tracks_by_cam, cap, encoder)
-    embeddings = {(cam, id): embd for cam in embeddings for id, embd in embeddings[cam].items()}
+    model_name = os.path.split(model_path)[-1].split('.')[0]
+    embeddings_file = f'src/tracking/metric_learning/embeddings/{seq}_{model_name}.pkl'
+    if os.path.exists(embeddings_file):
+        with open(embeddings_file, 'rb') as f:
+            embeddings = pickle.load(f)
+    else:
+        embeddings = get_track_embeddings(tracks_by_cam, cap, encoder, save_path=embeddings_file)
 
     # cluster embeddings to associate tracks
     clustering = DBSCAN(eps=3, min_samples=2)
@@ -121,13 +131,19 @@ def reid_exhaustive(root):
         clusters[label].append(id)
     pprint.pprint(clusters)
 
+    # TODO complete this code
+
+    return tracks_by_cam
+
 
 def reid_spatiotemporal(root, seq, model_path, metric='euclidean', thresh=10):
     seq_path = os.path.join(root, 'train', seq)
     cams = sorted([f for f in os.listdir(seq_path) if not f.startswith('.')])
 
     # read data
-    tracks_by_cam = {cam: group_in_tracks(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt')), cam) for cam in cams}
+    tracks_by_cam = {
+        cam: group_in_tracks(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt')),
+                             cam) for cam in cams}
     cap = {cam: cv2.VideoCapture(os.path.join(seq_path, cam, 'vdo.avi')) for cam in cams}
     fps = {cam: cap[cam].get(cv2.CAP_PROP_FPS) for cam in cams}
     H = {cam: read_calibration(os.path.join(seq_path, cam, 'calibration.txt')) for cam in cams}
@@ -142,7 +158,8 @@ def reid_spatiotemporal(root, seq, model_path, metric='euclidean', thresh=10):
     encoder.eval()
 
     # compute all embeddings
-    embeddings_file = f'./embeddings/{seq}.pkl'
+    model_name = os.path.split(model_path)[-1].split('.')[0]
+    embeddings_file = f'src/tracking/metric_learning/embeddings/{seq}_{model_name}.pkl'
     if os.path.exists(embeddings_file):
         with open(embeddings_file, 'rb') as f:
             embeddings = pickle.load(f)
@@ -217,7 +234,9 @@ def reid_spatiotemporal_graph(root, seq, model_path, metric='euclidean'):
     cams = sorted([f for f in os.listdir(seq_path) if not f.startswith('.')])
 
     # read data
-    tracks_by_cam = {cam: group_by_id(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for cam in cams}
+    tracks_by_cam = {
+        cam: group_by_id(parse_annotations_from_txt(os.path.join(seq_path, cam, 'mtsc', 'mtsc_tc_mask_rcnn.txt'))) for
+        cam in cams}
     cap = {cam: cv2.VideoCapture(os.path.join(seq_path, cam, 'vdo.avi')) for cam in cams}
     fps = {cam: cap[cam].get(cv2.CAP_PROP_FPS) for cam in cams}
     H = {cam: read_calibration(os.path.join(seq_path, cam, 'calibration.txt')) for cam in cams}
@@ -232,7 +251,8 @@ def reid_spatiotemporal_graph(root, seq, model_path, metric='euclidean'):
     encoder.eval()
 
     # compute all embeddings
-    embeddings_file = f'./embeddings/{seq}.pkl'
+    model_name = os.path.split(model_path)[-1].split('.')[0]
+    embeddings_file = f'src/tracking/metric_learning/embeddings/{seq}_{model_name}.pkl'
     if os.path.exists(embeddings_file):
         with open(embeddings_file, 'rb') as f:
             embeddings = pickle.load(f)
@@ -243,7 +263,8 @@ def reid_spatiotemporal_graph(root, seq, model_path, metric='euclidean'):
     for cam1 in cams:
         for id1, track1 in tracks_by_cam[cam1].items():
             track1.sort(key=lambda det: det.frame)
-            dir1 = bbox2gps(track1[-1].bbox, H[cam1]) - bbox2gps(track1[-min(int(fps[cam1]), len(track1) - 1)].bbox, H[cam1])
+            dir1 = bbox2gps(track1[-1].bbox, H[cam1]) - bbox2gps(track1[-min(int(fps[cam1]), len(track1) - 1)].bbox,
+                                                                 H[cam1])
             range1 = time_range(track1, timestamp[cam1], fps[cam1])
 
             candidates = []
@@ -254,7 +275,8 @@ def reid_spatiotemporal_graph(root, seq, model_path, metric='euclidean'):
                 if angle_to_cam(track1, H[cam1], cam2) < 45:  # going towards the camera
                     for id2, track2 in tracks_by_cam[cam2].items():
                         track2.sort(key=lambda det: det.frame)
-                        dir2 = bbox2gps(track2[min(int(fps[cam2]), len(track2) - 1)].bbox, H[cam2]) - bbox2gps(track2[0].bbox, H[cam2])
+                        dir2 = bbox2gps(track2[min(int(fps[cam2]), len(track2) - 1)].bbox, H[cam2]) - bbox2gps(
+                            track2[0].bbox, H[cam2])
                         range2 = time_range(track2, timestamp[cam2], fps[cam2])
 
                         if range2[0] >= range1[0]:  # car is detected later in second camera
@@ -291,7 +313,7 @@ def reid_spatiotemporal_graph(root, seq, model_path, metric='euclidean'):
 def write_results(tracks_by_cam, path):
     for cam, tracks in tracks_by_cam.items():
         lines = []
-        for track in tracks:
+        for id, track in tracks.items():
             if isinstance(track, Track):
                 track = track.get_track()
             for det in track:
@@ -305,9 +327,10 @@ def write_results(tracks_by_cam, path):
             for line in lines:
                 file.write(','.join(list(map(str, line))) + '\n')
 
+
 def reid(root, seq, model_path, reid_method):
     if reid_method == 'exhaustive':
-        return reid_exhaustive(root)
+        return reid_exhaustive(root, seq, model_path)
     elif reid_method == 'spatio_temporal_consec':
         return reid_spatiotemporal(root, seq, model_path)
     elif reid_method == 'spatio_temporal_graph':
