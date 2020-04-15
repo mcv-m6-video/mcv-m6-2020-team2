@@ -15,29 +15,38 @@ from utils.aicity_reader import parse_annotations_from_txt
 
 
 class Encoder(nn.Module):
-    def __init__(self, path=None, cuda=True):
+    def __init__(self, path=None):
         super().__init__()
-        self.cuda = cuda
+        self.cuda = torch.cuda.is_available()
         if path:
-            self.model = torch.load(path) if cuda else torch.load(path, map_location=torch.device('cpu'))
+            self.model = torch.load(path)
         else:
             self.model = nn.Sequential(
                 *list(models.mobilenet_v2(pretrained=True).features.children())[:-1],
                 nn.AdaptiveAvgPool2d((1, 1))
             )
+        self.cuda = torch.cuda.is_available()
+        if self.cuda:
+            self.model = self.model.cuda()
 
     def forward(self, x):
-        return self.model.get_embedding(x)
+        try:
+            return self.model.get_embedding(x)
+        except:
+            return self.model(x)
 
     def get_embedding(self, img):
         with torch.no_grad():
-            img = self.transform(img).unsqueeze(0).cuda() if self.cuda else self.transform(img).unsqueeze(0)
+            img = self.transform(img).unsqueeze(0)
+            if self.cuda:
+                img = img.cuda()
             return self.forward(img).squeeze().cpu().numpy()
 
     def get_embeddings(self, batch):
         with torch.no_grad():
-            batch = torch.stack([self.transform(img) for img in batch]).cuda() \
-                if self.cuda else torch.stack([self.transform(img) for img in batch])
+            batch = torch.stack([self.transform(img) for img in batch])
+            if self.cuda:
+                batch = batch.cuda()
             return self.forward(batch).squeeze().cpu().numpy()
 
     @staticmethod
@@ -87,7 +96,6 @@ def test_encoder(metric='euclidean'):
 
     encoder = Encoder(path='../metric_learning/checkpoints/epoch_19__ckpt.pth')
     print(encoder)
-    encoder.cuda()
     encoder.eval()
 
     pairs = [(('c010', 15), ('c011', 29)), None]

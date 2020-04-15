@@ -110,8 +110,8 @@ def get_transform(train):
 
 def train(args):
     train_dataset = ImageFolder(root=os.path.join(args.data_path, 'train'), transform=get_transform(train=True))
-    train_sampler = PKSampler(train_dataset.targets, p=16, k=16)
-    train_loader = DataLoader(train_dataset, batch_size=256, sampler=train_sampler, num_workers=4)
+    train_sampler = PKSampler(train_dataset.targets, p=18, k=16)
+    train_loader = DataLoader(train_dataset, batch_size=288, sampler=train_sampler, num_workers=4)
 
     val_dataset = ImageFolder(root=os.path.join(args.data_path, 'val'), transform=get_transform(train=False))
     val_loader = DataLoader(val_dataset, batch_size=256, shuffle=False, num_workers=4)
@@ -120,7 +120,7 @@ def train(args):
     model.cuda()
 
     criterion = TripletMarginLoss(margin=1.0, mining='batch_hard')
-    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
     scheduler = StepLR(optimizer, 8, gamma=0.1)
 
     writer = SummaryWriter(os.path.join(args.log_path, datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
