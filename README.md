@@ -21,8 +21,8 @@ M6 - Video Analysis: Video Surveillance for Road Traffic Monitoring
 
 optional arguments:
   -h, --help            show this help message and exit
-  -w WEEK, --week WEEK  week to execute. Options are [1,2]
-  -t TASK, --task TASK  task to execute. Options are [1,2,3,4]
+  -w WEEK, --week WEEK  week to execute. Options are [1,2,3,4,5]
+  -t TASK, --task TASK  task to execute. Options depend on each week.
 ```
 Figures for the results will be saved in `results/` 
 
@@ -53,11 +53,11 @@ For this, we use grayscale videos as well as colour information from different c
 
 The goal of this week is to perform object detection for car and from those detections track each one of the cars independently.
 
-* Object Detection:
+* **Object Detection**:
     * Mask-RCNN and Faster-RCNN are used "off-the-shelf", as they are trained with the COCO dataset (which provides with the necessary class **car**)
     * Fine tuned Mask-RCNN to our dataset.
     
-* Tracking
+* **Tracking**:
     * By overlap, we consider the IoU between boxes in consecutives frames in order to assign a unique id to a car 
     * Using the Kalman filter
 
@@ -65,4 +65,26 @@ The goal of this week is to perform object detection for car and from those dete
 
 ## Week 4
 
+The goal of this week is to estimate the optical flow of a video sequence and use it to stabilize any potential camera jitter and improve an object tracking algorithm.
+
+* Optical Flow with Block Matching
+* Video Stabilization with Block Matching
+* Object Tracking with Optical Flow
+
 [Report](https://docs.google.com/presentation/d/1-bFIreSw1XCeDrp7cc1dxFsglaH_gSK5kbGmUOzlrus/edit?usp=sharing)
+
+## Week 5
+
+The goal of this week is to solve the Track 03 of the [MOT Challenge 2020](https://motchallenge.net/): **Multi-target multi-camera tracking.**
+
+* **Multi-target single-camera (MTSC) tracking**
+    * Tracking from detections in Yolo3
+    * Discard small bounding boxes
+    * Filter static and momentary tracks
+
+* **Multi-target multi-camera (MTMC) tracking**
+    * Global track representations extracted with Metric Learning
+    * Track comparison reduction by considering spatio-temporal coherence
+    * Vehicle re-identification: exhaustive/consecutive/graph based
+ 
+[Report](https://docs.google.com/presentation/d/1xeUgqfad06A-rAoyQgwv2yyhKtFYFCpz5lcmfXGfKN0/edit?usp=sharing)
