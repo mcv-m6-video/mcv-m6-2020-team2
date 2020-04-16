@@ -596,7 +596,7 @@ def task2():
     root = 'data/AIC20_track3'
     seq = 'S03'
     model_path = 'src/tracking/metric_learning/checkpoints/epoch_19__ckpt.pth'
-    reid_method = 'spatio_temporal_consec'  # ['exhaustive', 'spatio_temporal_consec', 'spatio_temporal_graph']
+    reid_method = 'spatiotemporal'  # ['exhaustive', 'spatiotemporal', 'graph']
 
     # obtain reid results
     path_results = os.path.join('results', 'week5', seq)

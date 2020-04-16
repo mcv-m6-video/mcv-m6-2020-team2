@@ -120,7 +120,7 @@ def train(args):
     model.cuda()
 
     criterion = TripletMarginLoss(margin=1.0, mining='batch_hard')
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
     scheduler = StepLR(optimizer, 8, gamma=0.1)
 
     writer = SummaryWriter(os.path.join(args.log_path, datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
