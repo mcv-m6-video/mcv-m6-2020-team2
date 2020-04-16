@@ -278,7 +278,7 @@ def launch_test(save_path, distance_thresholds, min_track_len, min_width, min_he
         all_moving_tracks.extend(moving_tracks)
         detections = []
         for track in moving_tracks:
-            detections.extend(track.track)
+            detections.extend(track.detections)
         detections = group_by_frame(detections)
 
         for frame in trange(start, end, desc='Accumulating detections'):
@@ -298,7 +298,7 @@ def launch_test(save_path, distance_thresholds, min_track_len, min_width, min_he
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), track.color, -6)
                     cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0),
                                 6)
-                    cv2.circle(img, track.track[-1].center, 5, track.color, -1)
+                    cv2.circle(img, track.detections[-1].center, 5, track.color, -1)
 
             y_pred.append(frame_detections)
 
@@ -313,7 +313,7 @@ def launch_test(save_path, distance_thresholds, min_track_len, min_width, min_he
 
             lines = []
             for track in all_moving_tracks:
-                for det in track.track:
+                for det in track.detections:
                     lines.append(
                         (det.frame, track.id, det.xtl, det.ytl, det.width, det.height, det.score, "-1", "-1", "-1"))
 
@@ -433,7 +433,7 @@ def launch_test_optical_flow(save_path, distance_thresholds, min_track_len, min_
         moving_tracks = remove_static_tracks(tracks, distance_threshold, min_track_len)
         detections = []
         for track in moving_tracks:
-            detections.extend(track.track)
+            detections.extend(track.detections)
         detections = group_by_frame(detections)
 
         for frame in trange(start, end, desc='Accumulating detections'):
@@ -453,7 +453,7 @@ def launch_test_optical_flow(save_path, distance_thresholds, min_track_len, min_
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), track.color, -6)
                     cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0),
                                 6)
-                    cv2.circle(img, track.track[-1].center, 5, track.color, -1)
+                    cv2.circle(img, track.detections[-1].center, 5, track.color, -1)
 
             y_pred.append(frame_detections)
 
@@ -540,7 +540,7 @@ def launch_test_kalman_filter(save_path, distance_thresholds, min_track_len, min
         moving_tracks = remove_static_tracks(tracks, distance_threshold, min_track_len)
         detections = []
         for track in moving_tracks:
-            detections.extend(track.track)
+            detections.extend(track.detections)
         detections = group_by_frame(detections)
 
         for frame in trange(start, end, desc='Accumulating detections'):
@@ -560,7 +560,7 @@ def launch_test_kalman_filter(save_path, distance_thresholds, min_track_len, min
                     cv2.rectangle(img, (int(det.xtl), int(det.ytl)), (int(det.xbr), int(det.ytl) - 15), track.color, -6)
                     cv2.putText(img, str(det.id), (int(det.xtl), int(det.ytl)), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0),
                                 6)
-                    cv2.circle(img, track.track[-1].center, 5, track.color, -1)
+                    cv2.circle(img, track.detections[-1].center, 5, track.color, -1)
 
             y_pred.append(frame_detections)
 

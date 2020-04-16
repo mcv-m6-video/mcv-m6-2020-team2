@@ -318,7 +318,7 @@ def write_results(tracks_by_cam, path):
         lines = []
         for track in tracks:
             if isinstance(track, Track):
-                track = track.get_track()
+                track = track.detections
             for det in track:
                 lines.append((det.frame, det.id, int(det.xtl), int(det.ytl), int(det.width), int(det.height),
                               det.score, '-1', '-1', '-1'))

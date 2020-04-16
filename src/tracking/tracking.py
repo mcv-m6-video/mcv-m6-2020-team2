@@ -92,8 +92,8 @@ def match_next_bbox(last_detection, unused_detections, optical_flow):
 def remove_static_tracks(tracks, distance_threshold, min_track_len):
     new_tracks = []
     for track in tracks:
-        if len(track.track) > min_track_len:
-            centroids_of_detections = np.array([[(d.xtl+d.xbr)/2, (d.ytl+d.ybr)/2] for d in track.track])
+        if len(track.detections) > min_track_len:
+            centroids_of_detections = np.array([[(d.xtl+d.xbr)/2, (d.ytl+d.ybr)/2] for d in track.detections])
             dists = pairwise_distances(centroids_of_detections, centroids_of_detections, metric='euclidean')
 
             if np.max(dists) > distance_threshold:

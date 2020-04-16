@@ -4,7 +4,7 @@ import random
 class Track(object):
     def __init__(self, id, detections, camera=0):
         self.id = id
-        self.track = detections
+        self.detections = detections
         self.color = (int(random.random() * 256),
                       int(random.random() * 256),
                       int(random.random() * 256))
@@ -14,13 +14,13 @@ class Track(object):
         self.camera = camera
 
     def get_track(self):
-        return self.track
+        return self.detections
 
     def add_detection(self, detection):
-        self.track.append(detection)
+        self.detections.append(detection)
 
     def last_detection(self):
-        return self.track[-1]
+        return self.detections[-1]
 
     def set_prev_track(self, track):
         self.prev_track = track
