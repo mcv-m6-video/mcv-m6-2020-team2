@@ -39,7 +39,7 @@ The first step of the project is to implement the evaluation metrics needed to p
     * Mean Square Error in Non-occluded areas
     * Percentage of Erroneous Pixels in Non-occluded areas
 
-[Report](https://docs.google.com/presentation/d/1AVxaY5epmUaZSwrJ3hu4xbOBTjpmJxgu0Pms7UMf96Q/edit#slide=id.g81008797c9_19_94)
+[Slides](https://docs.google.com/presentation/d/1AVxaY5epmUaZSwrJ3hu4xbOBTjpmJxgu0Pms7UMf96Q/edit#slide=id.g81008797c9_19_94)
 
 ## Week 2
 
@@ -47,7 +47,7 @@ The goal of this week is to model the background of a video sequence in order to
 
 For this, we use grayscale videos as well as colour information from different color spaces. We also compare our method with several SOTA methods from public python libraries.
 
-[Report](https://docs.google.com/presentation/d/1u4jSk3mfiY-k0kEzO-j3TatIRomean1OOWEv-l1FgTk/edit#slide=id.g613c54889_097)
+[Slides](https://docs.google.com/presentation/d/1u4jSk3mfiY-k0kEzO-j3TatIRomean1OOWEv-l1FgTk/edit#slide=id.g613c54889_097)
 
 ## Week 3
 
@@ -61,7 +61,7 @@ The goal of this week is to perform object detection for car and from those dete
     * By overlap, we consider the IoU between boxes in consecutives frames in order to assign a unique id to a car 
     * Using the Kalman filter
 
-[Report](https://docs.google.com/presentation/d/1wegcV2f-nD0tWDgEJ-S8RpuJD-X4PL5EHW8cjQ3wiMo/edit#slide=id.p)
+[Slides](https://docs.google.com/presentation/d/1wegcV2f-nD0tWDgEJ-S8RpuJD-X4PL5EHW8cjQ3wiMo/edit#slide=id.p)
 
 ## Week 4
 
@@ -71,7 +71,7 @@ The goal of this week is to estimate the optical flow of a video sequence and us
 * Video Stabilization with Block Matching
 * Object Tracking with Optical Flow
 
-[Report](https://docs.google.com/presentation/d/1-bFIreSw1XCeDrp7cc1dxFsglaH_gSK5kbGmUOzlrus/edit?usp=sharing)
+[Slides](https://docs.google.com/presentation/d/1-bFIreSw1XCeDrp7cc1dxFsglaH_gSK5kbGmUOzlrus/edit?usp=sharing)
 
 ## Week 5
 
@@ -87,4 +87,5 @@ The goal is to track vehicles across multiple cameras both at a single intersect
     * Track comparison reduction by considering spatio-temporal coherence
     * Vehicle re-identification: exhaustive/consecutive/graph based
  
-[Report](https://docs.google.com/presentation/d/1xeUgqfad06A-rAoyQgwv2yyhKtFYFCpz5lcmfXGfKN0/edit?usp=sharing)
+[Slides](https://docs.google.com/presentation/d/1xeUgqfad06A-rAoyQgwv2yyhKtFYFCpz5lcmfXGfKN0/edit?usp=sharing)
+[Report](report.pdf)
