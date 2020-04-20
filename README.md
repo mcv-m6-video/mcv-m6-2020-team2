@@ -88,4 +88,5 @@ The goal is to track vehicles across multiple cameras both at a single intersect
     * Vehicle re-identification: exhaustive/consecutive/graph based
  
 [Slides](https://docs.google.com/presentation/d/1xeUgqfad06A-rAoyQgwv2yyhKtFYFCpz5lcmfXGfKN0/edit?usp=sharing)
+
 [Report](report.pdf)
