@@ -7,7 +7,7 @@ The goal of the project is to provide a robust system for road traffic monitorin
 
 | Roger Casals | María Gil |Oscar Mañas| Laura Mora|
 |--------------|-----------|-----------|-----------|
-|rogercasalsvilardell@gmail.com| maria.gilaragones@gmail.com |oscmansan@gmail.com| lmoraballestar@gmail.com|
+|rogercasalsvilardell@gmail.com| maria.gilaragones@gmail.com | | lmoraballestar@gmail.com|
 
 ## Execution
  
